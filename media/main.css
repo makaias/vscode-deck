@@ -1,0 +1,136 @@
+body {
+  padding: 8px;
+  color: var(--vscode-foreground);
+  background: var(--vscode-sideBar-background);
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+  margin: 0;
+}
+
+.deck-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.deck-button {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  aspect-ratio: 1;
+  padding: 8px 4px;
+  border: 1px solid var(--vscode-button-border, transparent);
+  border-top-width: 3px;
+  border-top-color: var(--vscode-focusBorder);
+  border-radius: 4px;
+  background: var(--vscode-button-secondaryBackground, var(--vscode-editor-background));
+  color: var(--vscode-button-secondaryForeground, var(--vscode-foreground));
+  cursor: pointer;
+  transition: transform 0.05s ease, background 0.1s ease;
+  text-align: center;
+  overflow: hidden;
+  font-family: inherit;
+}
+
+.deck-button.deck-overflow {
+  justify-content: flex-start;
+}
+
+.deck-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.deck-button.deck-overflow:hover .deck-content {
+  animation: deck-scroll var(--deck-scroll-duration, 4s) ease-in-out 0.4s infinite alternate;
+}
+
+@keyframes deck-scroll {
+  from { transform: translateY(0); }
+  to   { transform: translateY(calc(-1 * var(--deck-scroll, 0px))); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deck-button.deck-overflow:hover .deck-content {
+    animation: none;
+  }
+}
+
+.deck-button:hover {
+  background: var(--vscode-button-secondaryHoverBackground, var(--vscode-list-hoverBackground));
+}
+
+.deck-button:active {
+  transform: scale(0.96);
+}
+
+.deck-button:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.deck-icon {
+  font-size: 24px;
+  line-height: 1;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  flex: 0 0 auto;
+}
+
+.deck-icon img,
+.deck-icon .deck-icon-svg {
+  width: 28px;
+  height: 28px;
+  max-width: 28px;
+  max-height: 28px;
+}
+
+.deck-title {
+  font-size: 11px;
+  line-height: 1.2;
+  word-break: break-word;
+  text-align: center;
+  width: 100%;
+}
+
+.deck-empty {
+  padding: 16px;
+  color: var(--vscode-descriptionForeground);
+  line-height: 1.5;
+}
+
+.deck-empty a {
+  color: var(--vscode-textLink-foreground);
+  cursor: pointer;
+}
+
+.deck-placeholder {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 4px;
+}
+
+.deck-placeholder p {
+  margin: 0;
+  color: var(--vscode-descriptionForeground);
+}
+
+.open-floating {
+  padding: 8px 12px;
+  border: 1px solid var(--vscode-button-border, transparent);
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  cursor: pointer;
+  border-radius: 2px;
+  font-family: inherit;
+}
+
+.open-floating:hover {
+  background: var(--vscode-button-hoverBackground);
+}

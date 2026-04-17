@@ -1,0 +1,66 @@
+{
+  "name": "vscode-deck",
+  "displayName": "VSCode Deck",
+  "description": "Stream Deck-style button grid for VSCode — trigger VSCode commands and shell commands from a configurable grid.",
+  "version": "0.0.1",
+  "publisher": "local",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "main": "./out/extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "vscodeDeck",
+          "title": "Deck",
+          "icon": "media/deck-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "vscodeDeck": [
+        {
+          "id": "vscodeDeck.view",
+          "name": "Deck",
+          "type": "webview"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "vscodeDeck.openFloating",
+        "title": "Deck: Open in Floating Window"
+      },
+      {
+        "command": "vscodeDeck.reload",
+        "title": "Deck: Reload Configuration"
+      },
+      {
+        "command": "vscodeDeck.editConfig",
+        "title": "Deck: Edit Configuration"
+      }
+    ],
+    "configuration": {
+      "title": "VSCode Deck",
+      "properties": {
+        "vscodeDeck.configPath": {
+          "type": "string",
+          "default": ".vscode/deck.json",
+          "description": "Path (relative to the workspace root) of the deck configuration file."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.3.3"
+  }
+}
