@@ -2,6 +2,14 @@
   const vscode = acquireVsCodeApi();
   let config = window.__deckConfig || { columns: 4, buttons: [], mode: 'sidebar' };
   const root = document.getElementById('root');
+  const savedState = (vscode.getState && vscode.getState()) || {};
+  const collapsedCategories = new Set(savedState.collapsed || []);
+
+  function saveState() {
+    if (vscode.setState) {
+      vscode.setState({ collapsed: Array.from(collapsedCategories) });
+    }
+  }
 
   function renderIcon(icon) {
     if (!icon || typeof icon !== 'string') return null;
@@ -60,28 +68,96 @@
     return wrap;
   }
 
-  function renderGrid() {
+  function renderButton(button, index) {
+    const el = document.createElement('button');
+    el.className = 'deck-button';
+    el.type = 'button';
+    if (button.color) el.style.borderTopColor = button.color;
+    const content = document.createElement('div');
+    content.className = 'deck-content';
+    const iconEl = renderIcon(button.icon);
+    if (iconEl) content.appendChild(iconEl);
+    const title = document.createElement('div');
+    title.className = 'deck-title';
+    title.textContent = button.title || '';
+    content.appendChild(title);
+    el.appendChild(content);
+    el.onclick = () => vscode.postMessage({ type: 'run', index: index });
+    return el;
+  }
+
+  function renderGrid(items) {
     const grid = document.createElement('div');
     grid.className = 'deck-grid';
     grid.style.gridTemplateColumns = `repeat(${config.columns || 4}, 1fr)`;
-    (config.buttons || []).forEach((button, i) => {
-      const el = document.createElement('button');
-      el.className = 'deck-button';
-      el.type = 'button';
-      if (button.color) el.style.borderTopColor = button.color;
-      const content = document.createElement('div');
-      content.className = 'deck-content';
-      const iconEl = renderIcon(button.icon);
-      if (iconEl) content.appendChild(iconEl);
-      const title = document.createElement('div');
-      title.className = 'deck-title';
-      title.textContent = button.title || '';
-      content.appendChild(title);
-      el.appendChild(content);
-      el.onclick = () => vscode.postMessage({ type: 'run', index: i });
-      grid.appendChild(el);
-    });
+    for (const { button, index } of items) {
+      grid.appendChild(renderButton(button, index));
+    }
     return grid;
+  }
+
+  function renderCategorySection(category, items) {
+    const section = document.createElement('div');
+    section.className = 'deck-section';
+    const collapsed = collapsedCategories.has(category);
+    if (collapsed) section.classList.add('deck-collapsed');
+    const header = document.createElement('button');
+    header.className = 'deck-category';
+    header.type = 'button';
+    const chevron = document.createElement('span');
+    chevron.className = 'deck-chevron';
+    chevron.textContent = '\u25BE';
+    const label = document.createElement('span');
+    label.className = 'deck-category-label';
+    label.textContent = category;
+    header.appendChild(chevron);
+    header.appendChild(label);
+    header.onclick = () => {
+      if (collapsedCategories.has(category)) {
+        collapsedCategories.delete(category);
+        section.classList.remove('deck-collapsed');
+      } else {
+        collapsedCategories.add(category);
+        section.classList.add('deck-collapsed');
+      }
+      saveState();
+      requestAnimationFrame(() => requestAnimationFrame(detectOverflow));
+    };
+    section.appendChild(header);
+    section.appendChild(renderGrid(items));
+    return section;
+  }
+
+  function renderAll() {
+    const frag = document.createDocumentFragment();
+    const buttons = config.buttons || [];
+    const uncategorized = [];
+    const byCategory = new Map();
+    const order = [];
+    buttons.forEach((button, index) => {
+      const cat = typeof button.category === 'string' ? button.category.trim() : '';
+      if (!cat) {
+        uncategorized.push({ button, index });
+      } else {
+        if (!byCategory.has(cat)) {
+          byCategory.set(cat, []);
+          order.push(cat);
+        }
+        byCategory.get(cat).push({ button, index });
+      }
+    });
+    if (uncategorized.length) {
+      frag.appendChild(renderGrid(uncategorized));
+    }
+    for (const cat of order) {
+      frag.appendChild(renderCategorySection(cat, byCategory.get(cat)));
+    }
+    // drop any remembered collapse entries for categories that no longer exist
+    for (const cat of Array.from(collapsedCategories)) {
+      if (!byCategory.has(cat)) collapsedCategories.delete(cat);
+    }
+    saveState();
+    return frag;
   }
 
   function detectOverflow() {
@@ -115,7 +191,7 @@
       root.appendChild(renderEmpty());
       return;
     }
-    root.appendChild(renderGrid());
+    root.appendChild(renderAll());
     requestAnimationFrame(() => requestAnimationFrame(detectOverflow));
   }
 

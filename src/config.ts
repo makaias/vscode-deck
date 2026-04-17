@@ -10,6 +10,7 @@ export interface DeckButton {
   title: string;
   icon?: string;
   color?: string;
+  category?: string;
   commands: CommandStep[];
 }
 
@@ -38,6 +39,7 @@ const EXAMPLE_CONFIG: DeckConfig = {
       title: 'Maven Clean + Install',
       icon: '📦',
       color: '#d97706',
+      category: 'Build',
       commands: [
         { type: 'shell', command: 'mvn clean' },
         { type: 'shell', command: 'mvn install' },
@@ -46,6 +48,7 @@ const EXAMPLE_CONFIG: DeckConfig = {
     {
       title: 'NPM Build',
       icon: '🔨',
+      category: 'Build',
       commands: [{ type: 'shell', command: 'npm run build' }],
     },
     {
