@@ -66,10 +66,7 @@ export class DeckPanel {
   private async onMessage(msg: { type: string; index?: number }) {
     if (msg.type === 'run' && typeof msg.index === 'number') {
       const btn = this.config.config.buttons[msg.index];
-      if (btn) {
-        await this.runner.run(btn.title, btn.commands);
-        this.panel.webview.postMessage({ type: 'runDone' });
-      }
+      if (btn) this.runner.run(btn.title, btn.commands);
     } else if (msg.type === 'editConfig') {
       vscode.commands.executeCommand('vscodeDeck.editConfig');
     }

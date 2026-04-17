@@ -45,10 +45,7 @@ export class DeckViewProvider implements vscode.WebviewViewProvider {
   private async onMessage(msg: { type: string; index?: number }) {
     if (msg.type === 'run' && typeof msg.index === 'number') {
       const btn = this.config.config.buttons[msg.index];
-      if (btn) {
-        await this.runner.run(btn.title, btn.commands);
-        this.view?.webview.postMessage({ type: 'runDone' });
-      }
+      if (btn) this.runner.run(btn.title, btn.commands);
     } else if (msg.type === 'openFloating') {
       vscode.commands.executeCommand('vscodeDeck.openFloating');
     } else if (msg.type === 'editConfig') {

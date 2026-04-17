@@ -2,7 +2,6 @@
   const vscode = acquireVsCodeApi();
   let config = window.__deckConfig || { columns: 4, buttons: [], mode: 'sidebar' };
   const root = document.getElementById('root');
-  let runningIndex = -1;
 
   function renderIcon(icon) {
     if (!icon || typeof icon !== 'string') return null;
@@ -79,12 +78,7 @@
       title.textContent = button.title || '';
       content.appendChild(title);
       el.appendChild(content);
-      if (i === runningIndex) el.disabled = true;
-      el.onclick = () => {
-        runningIndex = i;
-        render();
-        vscode.postMessage({ type: 'run', index: i });
-      };
+      el.onclick = () => vscode.postMessage({ type: 'run', index: i });
       grid.appendChild(el);
     });
     return grid;
@@ -133,9 +127,6 @@
     const msg = e.data;
     if (msg.type === 'config') {
       config = msg.config;
-      render();
-    } else if (msg.type === 'runDone') {
-      runningIndex = -1;
       render();
     }
   });
