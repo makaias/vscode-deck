@@ -186,6 +186,10 @@
 
   function scheduleDetect() {
     requestAnimationFrame(() => requestAnimationFrame(detectOverflow));
+    // A couple of late retries cover layout that settles after first paint
+    // (inline SVGs sizing, custom fonts loading, sidebar resize animations).
+    setTimeout(detectOverflow, 250);
+    setTimeout(detectOverflow, 1200);
   }
 
   let resizeObserver = null;
@@ -197,6 +201,11 @@
     resizeObserver.observe(root);
     root.querySelectorAll('.deck-button').forEach((btn) => {
       resizeObserver.observe(btn);
+    });
+    // Observe content so that height changes from late-loading SVGs or fonts
+    // (which don't change button size thanks to aspect-ratio) still retrigger.
+    root.querySelectorAll('.deck-content').forEach((el) => {
+      resizeObserver.observe(el);
     });
   }
 
