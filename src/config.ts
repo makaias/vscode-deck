@@ -33,7 +33,7 @@ export class ConfigLoader implements vscode.Disposable {
   private _emitter = new vscode.EventEmitter<DeckConfig>();
   readonly onDidChange = this._emitter.event;
 
-  constructor(private context: vscode.ExtensionContext) {
+  constructor(context: vscode.ExtensionContext) {
     this.reload();
     this.setupWatcher();
     vscode.workspace.onDidChangeConfiguration(
