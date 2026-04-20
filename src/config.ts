@@ -5,7 +5,7 @@ import { buildDefaultConfig } from './presets';
 
 export type CommandStep =
   | { type: 'vscode'; command: string; args?: unknown[] }
-  | { type: 'shell'; command: string; cwd?: string };
+  | { type: 'shell'; command: string; cwd?: string; continueOnError?: boolean };
 
 export interface DeckButton {
   title: string;

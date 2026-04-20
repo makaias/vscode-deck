@@ -134,34 +134,44 @@ class DeckPty implements vscode.Pseudoterminal {
 
 export class CommandRunner {
   async run(label: string, steps: CommandStep[]): Promise<void> {
-    const pty = new DeckPty();
-    const terminal = vscode.window.createTerminal({
-      name: `Deck: ${label}`,
-      pty,
-    });
-    terminal.show(true);
-    pty.writeLine(
-      `\x1b[1m=== ${label} (${new Date().toLocaleTimeString()}) ===\x1b[0m`,
-    );
+    let pty: DeckPty | undefined;
+    const ensurePty = (): DeckPty => {
+      if (pty) return pty;
+      pty = new DeckPty();
+      const terminal = vscode.window.createTerminal({
+        name: `Deck: ${label}`,
+        pty,
+      });
+      terminal.show(true);
+      pty.writeLine(
+        `\x1b[1m=== ${label} (${new Date().toLocaleTimeString()}) ===\x1b[0m`,
+      );
+      return pty;
+    };
     try {
-      for (const step of steps) {
+      for (let i = 0; i < steps.length; i++) {
+        const step = steps[i];
         if (step.type === 'vscode') {
-          pty.writeLine(`\x1b[36m> vscode: ${step.command}\x1b[0m`);
+          pty?.writeLine(`\x1b[36m> vscode: ${step.command}\x1b[0m`);
           await vscode.commands.executeCommand(step.command, ...(step.args ?? []));
         } else if (step.type === 'shell') {
+          const p = ensurePty();
           const effectiveCwd = resolveCwd(step.cwd);
-          const code = await pty.runCommand(step.command, effectiveCwd);
-          if (code !== 0) {
-            pty.writeLine(
-              `\x1b[31m! exited with code ${code}; aborting chain\x1b[0m`,
-            );
+          const code = await p.runCommand(step.command, effectiveCwd);
+          if (code !== 0 && !step.continueOnError) {
+            const hasMore = i < steps.length - 1;
+            if (hasMore) {
+              p.writeLine(
+                `\x1b[31m! exited with code ${code}; aborting chain\x1b[0m`,
+              );
+            }
             return;
           }
         }
       }
-      pty.writeLine('\x1b[32m=== done ===\x1b[0m');
+      pty?.writeLine('\x1b[32m=== done ===\x1b[0m');
     } catch (err) {
-      pty.writeLine(`\x1b[31m! error: ${(err as Error).message}\x1b[0m`);
+      pty?.writeLine(`\x1b[31m! error: ${(err as Error).message}\x1b[0m`);
       vscode.window.showErrorMessage(`VSCode Deck: ${(err as Error).message}`);
     }
   }
