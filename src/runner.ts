@@ -29,6 +29,19 @@ function crlf(s: string): string {
   return s.replace(/\r?\n/g, '\r\n');
 }
 
+function resolveCwd(cwd: string | undefined): string | undefined {
+  const folders = vscode.workspace.workspaceFolders ?? [];
+  const firstPath = folders[0]?.uri.fsPath;
+  if (!cwd) return firstPath;
+  return cwd.replace(/\$\{workspaceFolder(?::([^}]+))?\}/g, (_, name?: string) => {
+    if (name) {
+      const match = folders.find((f) => f.name === name);
+      return match ? match.uri.fsPath : '';
+    }
+    return firstPath ?? '';
+  });
+}
+
 class DeckPty implements vscode.Pseudoterminal {
   private writeEmitter = new vscode.EventEmitter<string>();
   private closeEmitter = new vscode.EventEmitter<number | void>();
@@ -136,10 +149,7 @@ export class CommandRunner {
           pty.writeLine(`\x1b[36m> vscode: ${step.command}\x1b[0m`);
           await vscode.commands.executeCommand(step.command, ...(step.args ?? []));
         } else if (step.type === 'shell') {
-          const workspace = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-          const effectiveCwd = step.cwd
-            ? step.cwd.replace('${workspaceFolder}', workspace ?? '')
-            : workspace;
+          const effectiveCwd = resolveCwd(step.cwd);
           const code = await pty.runCommand(step.command, effectiveCwd);
           if (code !== 0) {
             pty.writeLine(

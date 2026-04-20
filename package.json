@@ -40,6 +40,10 @@
       {
         "command": "vscodeDeck.editConfig",
         "title": "Deck: Edit Configuration"
+      },
+      {
+        "command": "vscodeDeck.generateFromWorkspace",
+        "title": "Deck: Generate Configuration from Workspace"
       }
     ],
     "configuration": {

@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import { buildDefaultConfig } from './presets';
 
 export type CommandStep =
   | { type: 'vscode'; command: string; args?: unknown[] }
@@ -24,39 +25,6 @@ const DEFAULT_CONFIG: DeckConfig = {
   mode: 'sidebar',
   columns: 4,
   buttons: [],
-};
-
-const EXAMPLE_CONFIG: DeckConfig = {
-  mode: 'sidebar',
-  columns: 4,
-  buttons: [
-    {
-      title: 'Save All',
-      icon: '💾',
-      commands: [{ type: 'vscode', command: 'workbench.action.files.saveAll' }],
-    },
-    {
-      title: 'Maven Clean + Install',
-      icon: '📦',
-      color: '#d97706',
-      category: 'Build',
-      commands: [
-        { type: 'shell', command: 'mvn clean' },
-        { type: 'shell', command: 'mvn install' },
-      ],
-    },
-    {
-      title: 'NPM Build',
-      icon: '🔨',
-      category: 'Build',
-      commands: [{ type: 'shell', command: 'npm run build' }],
-    },
-    {
-      title: 'Open Terminal',
-      icon: '⌨️',
-      commands: [{ type: 'vscode', command: 'workbench.action.terminal.new' }],
-    },
-  ],
 };
 
 export class ConfigLoader implements vscode.Disposable {
@@ -111,12 +79,61 @@ export class ConfigLoader implements vscode.Disposable {
       await fs.promises.access(uri.fsPath);
     } catch {
       await fs.promises.mkdir(path.dirname(uri.fsPath), { recursive: true });
-      await fs.promises.writeFile(
-        uri.fsPath,
-        JSON.stringify(EXAMPLE_CONFIG, null, 2),
-        'utf8',
-      );
+      const seed: DeckConfig = { mode: 'sidebar', columns: 4, buttons: [] };
+      await fs.promises.writeFile(uri.fsPath, JSON.stringify(seed, null, 2), 'utf8');
     }
+    const doc = await vscode.workspace.openTextDocument(uri);
+    await vscode.window.showTextDocument(doc);
+  }
+
+  async generateFromWorkspace() {
+    const uri = this.getConfigFileUri();
+    if (!uri) {
+      vscode.window.showErrorMessage('Open a workspace folder to generate Deck configuration.');
+      return;
+    }
+    const folders = (vscode.workspace.workspaceFolders ?? []).map((f) => ({
+      name: f.name,
+      path: f.uri.fsPath,
+    }));
+    if (folders.length === 0) {
+      vscode.window.showErrorMessage('No workspace folders to scan.');
+      return;
+    }
+    const detected = buildDefaultConfig(folders);
+    if (detected.length === 0) {
+      vscode.window.showInformationMessage(
+        'VSCode Deck: no recognized projects detected in this workspace.',
+      );
+      return;
+    }
+    let existing: Partial<DeckConfig> = {};
+    try {
+      existing = JSON.parse(await fs.promises.readFile(uri.fsPath, 'utf8')) as Partial<DeckConfig>;
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+        vscode.window.showErrorMessage(
+          `VSCode Deck: couldn't read existing config: ${(err as Error).message}`,
+        );
+        return;
+      }
+    }
+    const existingButtons = Array.isArray(existing.buttons) ? existing.buttons : [];
+    if (existingButtons.length > 0) {
+      const pick = await vscode.window.showWarningMessage(
+        `Replace ${existingButtons.length} existing Deck button(s) with ${detected.length} auto-detected one(s)?`,
+        { modal: true },
+        'Overwrite',
+      );
+      if (pick !== 'Overwrite') return;
+    }
+    const seed: DeckConfig = {
+      mode: existing.mode === 'floating' ? 'floating' : 'sidebar',
+      columns: typeof existing.columns === 'number' ? existing.columns : 4,
+      buttons: detected,
+    };
+    await fs.promises.mkdir(path.dirname(uri.fsPath), { recursive: true });
+    await fs.promises.writeFile(uri.fsPath, JSON.stringify(seed, null, 2), 'utf8');
     const doc = await vscode.workspace.openTextDocument(uri);
     await vscode.window.showTextDocument(doc);
   }

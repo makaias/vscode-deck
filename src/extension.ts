@@ -20,6 +20,9 @@ export function activate(context: vscode.ExtensionContext) {
       config.reload();
     }),
     vscode.commands.registerCommand('vscodeDeck.editConfig', () => config.openConfigFile()),
+    vscode.commands.registerCommand('vscodeDeck.generateFromWorkspace', () =>
+      config.generateFromWorkspace(),
+    ),
   );
 
   if (config.config.mode === 'floating' && vscode.workspace.workspaceFolders?.length) {
