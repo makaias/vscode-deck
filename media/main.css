@@ -63,7 +63,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  justify-content: center;
+  justify-content: flex-start;
   aspect-ratio: 1;
   padding: 8px 4px;
   border: 1px solid var(--vscode-button-border, transparent);
@@ -79,36 +79,29 @@ body {
   font-family: inherit;
 }
 
-.deck-button.deck-overflow {
-  justify-content: flex-start;
-}
-
 .deck-content {
   display: flex;
   flex-direction: column;
   align-items: center;
   flex: 0 0 auto;
+  /* auto vertical margin centers content that fits, and collapses to 0 once
+     content is taller than the flex container — giving us a "pin to top when
+     overflowing" effect without a JS class toggle. */
+  margin: auto 0;
+  transform: translateY(0);
+  transition: transform var(--deck-scroll-duration, 4s) ease-in-out 0.3s;
   will-change: transform;
 }
 
-@property --deck-scroll {
-  syntax: '<length>';
-  inherits: true;
-  initial-value: 0px;
-}
-
 .deck-button.deck-overflow:hover .deck-content {
-  animation: deck-scroll var(--deck-scroll-duration, 4s) ease-in-out 0.4s infinite alternate;
-}
-
-@keyframes deck-scroll {
-  from { transform: translateY(0); }
-  to   { transform: translateY(calc(-1 * var(--deck-scroll))); }
+  transform: translateY(calc(-1 * var(--deck-scroll, 0px)));
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .deck-content,
   .deck-button.deck-overflow:hover .deck-content {
-    animation: none;
+    transition: none;
+    transform: translateY(0);
   }
 }
 

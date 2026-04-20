@@ -68,6 +68,26 @@
     return wrap;
   }
 
+  function measureButton(btn) {
+    const content = btn.querySelector('.deck-content');
+    if (!content) return;
+    const style = getComputedStyle(btn);
+    const paddingY = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+    const available = btn.clientHeight - paddingY;
+    if (available <= 0) return;
+    const overflow = content.offsetHeight - available;
+    if (overflow > 1) {
+      btn.classList.add('deck-overflow');
+      btn.style.setProperty('--deck-scroll', overflow + 'px');
+      const duration = Math.max(2, overflow / 15);
+      btn.style.setProperty('--deck-scroll-duration', duration + 's');
+    } else {
+      btn.classList.remove('deck-overflow');
+      btn.style.removeProperty('--deck-scroll');
+      btn.style.removeProperty('--deck-scroll-duration');
+    }
+  }
+
   function renderButton(button, index) {
     const el = document.createElement('button');
     el.className = 'deck-button';
@@ -83,6 +103,7 @@
     content.appendChild(title);
     el.appendChild(content);
     el.onclick = () => vscode.postMessage({ type: 'run', index: index });
+    el.addEventListener('mouseenter', () => measureButton(el));
     return el;
   }
 
@@ -121,7 +142,6 @@
         section.classList.add('deck-collapsed');
       }
       saveState();
-      scheduleDetect();
     };
     section.appendChild(header);
     section.appendChild(renderGrid(items));
@@ -160,55 +180,6 @@
     return frag;
   }
 
-  function detectOverflow() {
-    root.querySelectorAll('.deck-button').forEach((btn) => {
-      const content = btn.querySelector('.deck-content');
-      if (!content) return;
-      const style = getComputedStyle(btn);
-      const paddingY = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
-      const available = btn.clientHeight - paddingY;
-      // If the button hasn't been laid out yet (hidden panel, 0 height), bail — a
-      // ResizeObserver tick will retry once it becomes visible.
-      if (available <= 0) return;
-      const overflow = content.offsetHeight - available;
-      if (overflow > 1) {
-        btn.classList.add('deck-overflow');
-        btn.style.setProperty('--deck-scroll', overflow + 'px');
-        const duration = Math.max(2, overflow / 15);
-        btn.style.setProperty('--deck-scroll-duration', duration + 's');
-      } else {
-        btn.classList.remove('deck-overflow');
-        btn.style.removeProperty('--deck-scroll');
-        btn.style.removeProperty('--deck-scroll-duration');
-      }
-    });
-  }
-
-  function scheduleDetect() {
-    requestAnimationFrame(() => requestAnimationFrame(detectOverflow));
-    // A couple of late retries cover layout that settles after first paint
-    // (inline SVGs sizing, custom fonts loading, sidebar resize animations).
-    setTimeout(detectOverflow, 250);
-    setTimeout(detectOverflow, 1200);
-  }
-
-  let resizeObserver = null;
-
-  function observeForLayoutChanges() {
-    if (typeof ResizeObserver === 'undefined') return;
-    if (resizeObserver) resizeObserver.disconnect();
-    resizeObserver = new ResizeObserver(() => scheduleDetect());
-    resizeObserver.observe(root);
-    root.querySelectorAll('.deck-button').forEach((btn) => {
-      resizeObserver.observe(btn);
-    });
-    // Observe content so that height changes from late-loading SVGs or fonts
-    // (which don't change button size thanks to aspect-ratio) still retrigger.
-    root.querySelectorAll('.deck-content').forEach((el) => {
-      resizeObserver.observe(el);
-    });
-  }
-
   function render() {
     root.innerHTML = '';
     if (config._placeholder) {
@@ -220,15 +191,7 @@
       return;
     }
     root.appendChild(renderAll());
-    observeForLayoutChanges();
-    scheduleDetect();
-    // Re-check once fonts finish loading; they can alter title heights.
-    if (document.fonts && document.fonts.ready && typeof document.fonts.ready.then === 'function') {
-      document.fonts.ready.then(scheduleDetect);
-    }
   }
-
-  window.addEventListener('resize', scheduleDetect);
 
   window.addEventListener('message', (e) => {
     const msg = e.data;
