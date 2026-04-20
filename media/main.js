@@ -121,7 +121,7 @@
         section.classList.add('deck-collapsed');
       }
       saveState();
-      requestAnimationFrame(() => requestAnimationFrame(detectOverflow));
+      scheduleDetect();
     };
     section.appendChild(header);
     section.appendChild(renderGrid(items));
@@ -167,6 +167,9 @@
       const style = getComputedStyle(btn);
       const paddingY = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
       const available = btn.clientHeight - paddingY;
+      // If the button hasn't been laid out yet (hidden panel, 0 height), bail — a
+      // ResizeObserver tick will retry once it becomes visible.
+      if (available <= 0) return;
       const overflow = content.offsetHeight - available;
       if (overflow > 1) {
         btn.classList.add('deck-overflow');
@@ -181,6 +184,22 @@
     });
   }
 
+  function scheduleDetect() {
+    requestAnimationFrame(() => requestAnimationFrame(detectOverflow));
+  }
+
+  let resizeObserver = null;
+
+  function observeForLayoutChanges() {
+    if (typeof ResizeObserver === 'undefined') return;
+    if (resizeObserver) resizeObserver.disconnect();
+    resizeObserver = new ResizeObserver(() => scheduleDetect());
+    resizeObserver.observe(root);
+    root.querySelectorAll('.deck-button').forEach((btn) => {
+      resizeObserver.observe(btn);
+    });
+  }
+
   function render() {
     root.innerHTML = '';
     if (config._placeholder) {
@@ -192,12 +211,15 @@
       return;
     }
     root.appendChild(renderAll());
-    requestAnimationFrame(() => requestAnimationFrame(detectOverflow));
+    observeForLayoutChanges();
+    scheduleDetect();
+    // Re-check once fonts finish loading; they can alter title heights.
+    if (document.fonts && document.fonts.ready && typeof document.fonts.ready.then === 'function') {
+      document.fonts.ready.then(scheduleDetect);
+    }
   }
 
-  window.addEventListener('resize', () => {
-    requestAnimationFrame(() => requestAnimationFrame(detectOverflow));
-  });
+  window.addEventListener('resize', scheduleDetect);
 
   window.addEventListener('message', (e) => {
     const msg = e.data;
