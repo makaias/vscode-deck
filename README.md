@@ -41,6 +41,9 @@ npx @vscode/vsce package
 
 That produces a `.vsix` you can install via **Extensions: Install from VSIX…** in the command palette.
 
+```
+code --install-extension vscode-deck-0.0.1.vsix
+```
 ---
 
 ## Getting started
