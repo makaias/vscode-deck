@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { ConfigLoader } from './config';
 import { CommandRunner } from './runner';
-import { getHtml } from './webview';
+import { getHtml, getIconResourceRoots } from './webview';
 
 export class DeckPanel {
   private static current?: DeckPanel;
@@ -45,6 +45,7 @@ export class DeckPanel {
     panel: vscode.WebviewPanel,
   ) {
     this.panel = panel;
+    this.applyOptions();
     this.panel.webview.html = getHtml(
       panel.webview,
       context.extensionUri,
@@ -55,6 +56,7 @@ export class DeckPanel {
       this.panel.onDidDispose(() => this.dispose()),
       this.panel.webview.onDidReceiveMessage((msg) => this.onMessage(msg)),
       this.config.onDidChange((c) => {
+        this.applyOptions();
         this.panel.webview.html = getHtml(
           this.panel.webview,
           this.context.extensionUri,
@@ -69,6 +71,16 @@ export class DeckPanel {
         });
       }),
     );
+  }
+
+  private applyOptions() {
+    this.panel.webview.options = {
+      enableScripts: true,
+      localResourceRoots: getIconResourceRoots(
+        this.context.extensionUri,
+        this.config.config,
+      ),
+    };
   }
 
   private async onMessage(msg: { type: string; index?: number; key?: string }) {

@@ -31,9 +31,14 @@
       }
       return el;
     }
-    if (/^(https?:|data:|\/|\.)/.test(trimmed)) {
+    if (/^(https?:|data:|\/|\.|[a-zA-Z]:[\\/])/.test(trimmed)) {
       const img = document.createElement('img');
       img.src = trimmed;
+      img.onerror = () => {
+        el.innerHTML = '';
+        el.classList.add('deck-icon-missing');
+        el.textContent = '?';
+      };
       el.appendChild(img);
       return el;
     }

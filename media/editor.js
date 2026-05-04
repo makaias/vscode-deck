@@ -9,6 +9,61 @@
   let dragUid = -1;
   let nextUid = 1;
 
+  // Icon path resolution: backend rewrites local file paths into webview URIs.
+  // We keep the raw string in state (so the user can edit it) but render
+  // previews from the resolved URI when one is available.
+  const iconCache = new Map();
+  const pendingResolves = new Set();
+  const initialIconMap = window.__deckIconMap || {};
+  for (const raw in initialIconMap) {
+    iconCache.set(raw, initialIconMap[raw]);
+  }
+
+  function isProbablyLocalPath(raw) {
+    // Mirrors resolveLocalIconPath in src/webview.ts.
+    if (/^[a-zA-Z]:[\\/]/.test(raw)) return true; // Windows drive
+    if (/^\\\\/.test(raw)) return true; // UNC
+    if (/^\.{1,2}[\\/]/.test(raw)) return true; // ./ or ../
+    if (/^\/[^\/]/.test(raw)) return true; // POSIX absolute (not //)
+    // Bare path containing a slash with an image extension (e.g. "icons/x.png")
+    if (/[\\/]/.test(raw) && /\.(png|jpe?g|gif|webp|svg|ico|bmp)$/i.test(raw)) {
+      return true;
+    }
+    return false;
+  }
+
+  function requestResolve(raw) {
+    if (iconCache.has(raw) || pendingResolves.has(raw)) return;
+    pendingResolves.add(raw);
+    vscode.postMessage({ type: 'resolveIcon', raw: raw });
+  }
+
+  function applyResolvedIcon(raw, resolved) {
+    iconCache.set(raw, resolved);
+    pendingResolves.delete(raw);
+    // Refresh every preview node that's showing this raw value, in place.
+    const wraps = root.querySelectorAll('.icon-preview');
+    wraps.forEach((wrap) => {
+      if (wrap.dataset.iconRaw !== raw) return;
+      wrap.innerHTML = '';
+      wrap.classList.remove('icon-empty');
+      wrap.textContent = '';
+      if (resolved) {
+        const img = document.createElement('img');
+        img.src = resolved;
+        img.onerror = () => {
+          wrap.innerHTML = '';
+          wrap.classList.add('icon-empty');
+          wrap.textContent = '?';
+        };
+        wrap.appendChild(img);
+      } else {
+        wrap.classList.add('icon-empty');
+        wrap.textContent = '?';
+      }
+    });
+  }
+
   function assignUid(btn) {
     if (btn.__uid === undefined) {
       Object.defineProperty(btn, '__uid', {
@@ -230,6 +285,7 @@
 
   function renderIconPreview(icon) {
     const wrap = el('span', 'icon-preview');
+    if (typeof icon === 'string') wrap.dataset.iconRaw = icon;
     if (!icon || typeof icon !== 'string') {
       wrap.classList.add('icon-empty');
       wrap.textContent = '·';
@@ -254,7 +310,8 @@
       }
       return wrap;
     }
-    if (/^(https?:|data:|\/|\.)/.test(trimmed)) {
+    // URLs and data URIs render directly
+    if (/^(https?:|data:)/i.test(trimmed)) {
       const img = document.createElement('img');
       img.src = trimmed;
       img.onerror = () => {
@@ -263,6 +320,31 @@
         wrap.textContent = '?';
       };
       wrap.appendChild(img);
+      return wrap;
+    }
+    // Local file paths must go through the backend to be converted to a
+    // webview URI. If we already have it cached, render now; otherwise
+    // request resolution and show a placeholder until it arrives.
+    if (isProbablyLocalPath(trimmed)) {
+      const cached = iconCache.get(icon);
+      if (cached) {
+        const img = document.createElement('img');
+        img.src = cached;
+        img.onerror = () => {
+          wrap.innerHTML = '';
+          wrap.classList.add('icon-empty');
+          wrap.textContent = '?';
+        };
+        wrap.appendChild(img);
+      } else if (cached === null) {
+        // Backend already told us this isn't resolvable
+        wrap.classList.add('icon-empty');
+        wrap.textContent = '?';
+      } else {
+        wrap.classList.add('icon-empty');
+        wrap.textContent = '…';
+        requestResolve(icon);
+      }
       return wrap;
     }
     wrap.textContent = trimmed;
@@ -1070,6 +1152,8 @@
     } else if (msg.type === 'saveError') {
       saveStatus = null;
       renderHeaderOnly();
+    } else if (msg.type === 'iconResolved') {
+      applyResolvedIcon(msg.raw, msg.resolved);
     }
   });
 

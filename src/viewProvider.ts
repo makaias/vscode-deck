@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { ConfigLoader, DeckConfig } from './config';
 import { CommandRunner } from './runner';
-import { getHtml, RenderedConfig } from './webview';
+import { getHtml, getIconResourceRoots, RenderedConfig } from './webview';
 
 export class DeckViewProvider implements vscode.WebviewViewProvider {
   private view?: vscode.WebviewView;
@@ -19,10 +19,7 @@ export class DeckViewProvider implements vscode.WebviewViewProvider {
 
   resolveWebviewView(view: vscode.WebviewView) {
     this.view = view;
-    view.webview.options = {
-      enableScripts: true,
-      localResourceRoots: [vscode.Uri.joinPath(this.context.extensionUri, 'media')],
-    };
+    this.applyOptions();
     view.webview.html = getHtml(
       view.webview,
       this.context.extensionUri,
@@ -32,6 +29,17 @@ export class DeckViewProvider implements vscode.WebviewViewProvider {
     view.webview.onDidReceiveMessage((msg) => this.onMessage(msg));
   }
 
+  private applyOptions() {
+    if (!this.view) return;
+    this.view.webview.options = {
+      enableScripts: true,
+      localResourceRoots: getIconResourceRoots(
+        this.context.extensionUri,
+        this.renderedConfig(this.config.config),
+      ),
+    };
+  }
+
   private renderedConfig(c: DeckConfig): RenderedConfig {
     if (c.mode === 'floating') return { ...c, _placeholder: true };
     return c;
@@ -39,6 +47,7 @@ export class DeckViewProvider implements vscode.WebviewViewProvider {
 
   private push() {
     if (!this.view) return;
+    this.applyOptions();
     this.view.webview.html = getHtml(
       this.view.webview,
       this.context.extensionUri,

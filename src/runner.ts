@@ -1,6 +1,24 @@
 import * as vscode from 'vscode';
 import { spawn, ChildProcess } from 'child_process';
+import * as path from 'path';
 import { CommandStep } from './config';
+
+function killPosix(pid: number, signal: NodeJS.Signals): boolean {
+  // Try the negative pid first to signal the whole process group (created via
+  // `detached: true` on POSIX). Fall back to the leader pid if the group
+  // doesn't exist (e.g. a child that re-parented or never created a group).
+  try {
+    process.kill(-pid, signal);
+    return true;
+  } catch {
+    try {
+      process.kill(pid, signal);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+}
 
 function killTree(pid: number) {
   if (process.platform === 'win32') {
@@ -12,17 +30,21 @@ function killTree(pid: number) {
     } catch {
       /* ignore */
     }
-  } else {
-    try {
-      process.kill(-pid, 'SIGTERM');
-    } catch {
-      try {
-        process.kill(pid, 'SIGTERM');
-      } catch {
-        /* ignore */
-      }
-    }
+    return;
   }
+  // POSIX (Linux, macOS): graceful SIGTERM first; escalate to SIGKILL after a
+  // grace period for processes that ignore SIGTERM. Matches the immediate-kill
+  // semantics of `taskkill /T /F` on Windows when the target won't go quietly.
+  if (!killPosix(pid, 'SIGTERM')) return;
+  setTimeout(() => {
+    try {
+      // signal 0 only checks for existence — throws ESRCH if already gone.
+      process.kill(pid, 0);
+      killPosix(pid, 'SIGKILL');
+    } catch {
+      /* already exited */
+    }
+  }, 1000).unref();
 }
 
 function crlf(s: string): string {
@@ -33,13 +55,19 @@ function resolveCwd(cwd: string | undefined): string | undefined {
   const folders = vscode.workspace.workspaceFolders ?? [];
   const firstPath = folders[0]?.uri.fsPath;
   if (!cwd) return firstPath;
-  return cwd.replace(/\$\{workspaceFolder(?::([^}]+))?\}/g, (_, name?: string) => {
-    if (name) {
-      const match = folders.find((f) => f.name === name);
-      return match ? match.uri.fsPath : '';
-    }
-    return firstPath ?? '';
-  });
+  const substituted = cwd.replace(
+    /\$\{workspaceFolder(?::([^}]+))?\}/g,
+    (_, name?: string) => {
+      if (name) {
+        const match = folders.find((f) => f.name === name);
+        return match ? match.uri.fsPath : '';
+      }
+      return firstPath ?? '';
+    },
+  );
+  // Normalize so `${workspaceFolder}/sub` produces `c:\\path\\sub` on Windows
+  // instead of mixed slashes (`c:\\path/sub`), which some tools dislike.
+  return path.normalize(substituted);
 }
 
 class DeckPty implements vscode.Pseudoterminal {
@@ -141,10 +169,32 @@ interface ActiveRun {
   cancelled: boolean;
 }
 
+interface CachedTerminal {
+  pty: DeckPty;
+  terminal: vscode.Terminal;
+}
+
 export class CommandRunner {
   private active = new Map<string, ActiveRun>();
+  private terminals = new Map<string, CachedTerminal>();
   private emitter = new vscode.EventEmitter<ReadonlySet<string>>();
+  private terminalCloseListener: vscode.Disposable;
   readonly onDidChangeRunning = this.emitter.event;
+
+  constructor() {
+    // When a user manually closes a cached terminal (the X on the tab),
+    // drop it from the cache so the next run for that button creates a fresh
+    // one instead of reaching for a disposed pty.
+    this.terminalCloseListener = vscode.window.onDidCloseTerminal((t) => {
+      for (const [key, entry] of this.terminals) {
+        if (entry.terminal === t) {
+          entry.pty.dispose();
+          this.terminals.delete(key);
+          break;
+        }
+      }
+    });
+  }
 
   get runningKeys(): ReadonlySet<string> {
     return new Set(this.active.keys());
@@ -166,6 +216,23 @@ export class CommandRunner {
     this.emitter.fire(this.runningKeys);
   }
 
+  private acquirePty(runKey: string | undefined, label: string): DeckPty {
+    if (runKey) {
+      const cached = this.terminals.get(runKey);
+      if (cached) {
+        cached.terminal.show(true);
+        return cached.pty;
+      }
+    }
+    const pty = new DeckPty();
+    const terminal = vscode.window.createTerminal({ name: `Deck: ${label}`, pty });
+    terminal.show(true);
+    if (runKey) {
+      this.terminals.set(runKey, { pty, terminal });
+    }
+    return pty;
+  }
+
   async run(label: string, steps: CommandStep[], runKey?: string): Promise<void> {
     // Click-to-cancel: a run() call with the key of an already-active run cancels it.
     if (runKey && this.active.has(runKey)) {
@@ -181,12 +248,7 @@ export class CommandRunner {
 
     const ensurePty = (): DeckPty => {
       if (run.pty) return run.pty;
-      run.pty = new DeckPty();
-      const terminal = vscode.window.createTerminal({
-        name: `Deck: ${label}`,
-        pty: run.pty,
-      });
-      terminal.show(true);
+      run.pty = this.acquirePty(runKey, label);
       run.pty.writeLine(
         `\x1b[1m=== ${label} (${new Date().toLocaleTimeString()}) ===\x1b[0m`,
       );
@@ -245,6 +307,15 @@ export class CommandRunner {
       run.pty?.cancelCurrent();
     }
     this.active.clear();
+    // Snapshot + clear before disposing so the onDidCloseTerminal handler
+    // doesn't trip over a half-disposed cache.
+    const entries = Array.from(this.terminals.values());
+    this.terminals.clear();
+    for (const entry of entries) {
+      entry.pty.dispose();
+      entry.terminal.dispose();
+    }
+    this.terminalCloseListener.dispose();
     this.emitter.dispose();
   }
 }

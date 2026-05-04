@@ -1,5 +1,26 @@
 import * as vscode from 'vscode';
 import { DeckConfig } from './config';
+import { resolveLocalIconPath } from './webview';
+
+/**
+ * Build a map from raw icon string → webview URI for every local-file icon in
+ * the config. The editor uses the raw string in input fields (so users can
+ * edit it) and the URI for previews.
+ */
+function buildIconMap(
+  webview: vscode.Webview,
+  config: DeckConfig,
+): Record<string, string> {
+  const map: Record<string, string> = {};
+  for (const btn of config.buttons || []) {
+    if (typeof btn.icon !== 'string') continue;
+    if (map[btn.icon]) continue;
+    const local = resolveLocalIconPath(btn.icon);
+    if (!local) continue;
+    map[btn.icon] = webview.asWebviewUri(vscode.Uri.file(local)).toString();
+  }
+  return map;
+}
 
 export function getEditorHtml(
   webview: vscode.Webview,
@@ -20,6 +41,7 @@ export function getEditorHtml(
     `img-src ${webview.cspSource} https: data:`,
     `script-src 'nonce-${nonce}'`,
   ].join('; ');
+  const iconMap = buildIconMap(webview, config);
   return `<!doctype html>
 <html>
 <head>
@@ -29,7 +51,10 @@ export function getEditorHtml(
 </head>
 <body>
 <div id="root"></div>
-<script nonce="${nonce}">window.__deckConfig = ${JSON.stringify(config)};</script>
+<script nonce="${nonce}">
+window.__deckConfig = ${JSON.stringify(config)};
+window.__deckIconMap = ${JSON.stringify(iconMap)};
+</script>
 <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>
 </html>`;

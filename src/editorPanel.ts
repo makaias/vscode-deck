@@ -1,18 +1,22 @@
+import * as path from 'path';
 import * as vscode from 'vscode';
 import { ConfigLoader, DeckConfig } from './config';
 import { getEditorHtml } from './editorWebview';
+import { getIconResourceRoots, resolveLocalIconPath } from './webview';
 
 interface IncomingMessage {
   type: string;
   config?: DeckConfig;
   text?: string;
   toast?: string;
+  raw?: string;
 }
 
 export class DeckEditorPanel {
   private static current?: DeckEditorPanel;
   private panel: vscode.WebviewPanel;
   private disposables: vscode.Disposable[] = [];
+  private iconResourceDirs = new Set<string>();
 
   static createOrShow(context: vscode.ExtensionContext, config: ConfigLoader) {
     if (DeckEditorPanel.current) {
@@ -27,7 +31,6 @@ export class DeckEditorPanel {
       {
         enableScripts: true,
         retainContextWhenHidden: true,
-        localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, 'media')],
       },
     );
     DeckEditorPanel.current = new DeckEditorPanel(context, config, panel);
@@ -39,6 +42,7 @@ export class DeckEditorPanel {
     panel: vscode.WebviewPanel,
   ) {
     this.panel = panel;
+    this.applyOptions();
     this.panel.webview.html = getEditorHtml(
       panel.webview,
       context.extensionUri,
@@ -50,7 +54,22 @@ export class DeckEditorPanel {
     );
   }
 
+  private applyOptions() {
+    const baseRoots = getIconResourceRoots(
+      this.context.extensionUri,
+      this.config.config,
+    );
+    const extraRoots = Array.from(this.iconResourceDirs).map((d) =>
+      vscode.Uri.file(d),
+    );
+    this.panel.webview.options = {
+      enableScripts: true,
+      localResourceRoots: [...baseRoots, ...extraRoots],
+    };
+  }
+
   private pushConfig() {
+    this.applyOptions();
     this.panel.webview.postMessage({ type: 'config', config: this.config.config });
   }
 
@@ -71,7 +90,6 @@ export class DeckEditorPanel {
       vscode.commands.executeCommand('vscodeDeck.editConfig');
     } else if (msg.type === 'generateFromWorkspace') {
       await vscode.commands.executeCommand('vscodeDeck.generateFromWorkspace');
-      // generateFromWorkspace writes the file; pull the fresh config in
       this.config.reload();
       this.pushConfig();
     } else if (msg.type === 'copyToClipboard' && typeof msg.text === 'string') {
@@ -81,6 +99,22 @@ export class DeckEditorPanel {
       );
     } else if (msg.type === 'openKeybindings') {
       vscode.commands.executeCommand('workbench.action.openGlobalKeybindings');
+    } else if (msg.type === 'resolveIcon' && typeof msg.raw === 'string') {
+      const local = resolveLocalIconPath(msg.raw);
+      let resolved: string | null = null;
+      if (local) {
+        const dir = path.dirname(local);
+        if (!this.iconResourceDirs.has(dir)) {
+          this.iconResourceDirs.add(dir);
+          this.applyOptions();
+        }
+        resolved = this.panel.webview.asWebviewUri(vscode.Uri.file(local)).toString();
+      }
+      this.panel.webview.postMessage({
+        type: 'iconResolved',
+        raw: msg.raw,
+        resolved,
+      });
     }
   }
 
