@@ -55,7 +55,17 @@
           "description": "Path (relative to the workspace root) of the deck configuration file."
         }
       }
-    }
+    },
+    "jsonValidation": [
+      {
+        "fileMatch": ".vscode/deck.json",
+        "url": "./schemas/deck.schema.json"
+      },
+      {
+        "fileMatch": "**/deck.json",
+        "url": "./schemas/deck.schema.json"
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

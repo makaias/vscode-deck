@@ -1,0 +1,145 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/local/vscode-deck/schemas/deck.schema.json",
+  "title": "VSCode Deck Configuration",
+  "description": "Configuration for the VSCode Deck extension. Defines a Stream Deck-style button grid that runs VSCode commands and shell commands.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "URI of this JSON schema. Optional — only needed when the file is stored outside the default `.vscode/deck.json` location and you want IntelliSense to activate."
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["sidebar", "floating"],
+      "default": "sidebar",
+      "description": "Where the button grid is displayed.\n\n- `sidebar` — embedded in the activity-bar Deck view.\n- `floating` — opens in a separate VSCode window (run `Deck: Open in Floating Window`)."
+    },
+    "columns": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 4,
+      "description": "Number of buttons per row in the grid."
+    },
+    "iconSize": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "default": 28,
+      "description": "Icon size in pixels for every button. If omitted, the extension default (28px) is used."
+    },
+    "buttons": {
+      "type": "array",
+      "description": "Buttons rendered in the grid, in display order.",
+      "items": { "$ref": "#/definitions/DeckButton" }
+    }
+  },
+  "definitions": {
+    "DeckButton": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "commands"],
+      "description": "A single clickable button in the grid.",
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Label shown under the button icon."
+        },
+        "icon": {
+          "type": "string",
+          "description": "Icon for the button. Accepts any of:\n\n- An emoji or short text — e.g. `\"▶️\"`, `\"🚀\"`\n- An HTTP(S) URL pointing to an image\n- A workspace-relative file path — e.g. `\"media/run.svg\"`\n- An inline SVG string — use `currentColor` for theme-aware tinting",
+          "examples": [
+            "▶️",
+            "https://example.com/icon.png",
+            "media/run.svg",
+            "<svg viewBox='0 0 24 24' fill='currentColor'>…</svg>"
+          ]
+        },
+        "color": {
+          "type": "string",
+          "format": "color",
+          "description": "CSS color used for the top-border accent of the button. Any valid CSS color (named, hex, rgb, hsl).",
+          "examples": ["#22c55e", "tomato", "rgb(99 102 241)"]
+        },
+        "category": {
+          "type": "string",
+          "description": "Optional group header. Buttons sharing the same category are placed under a collapsible heading."
+        },
+        "commands": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Steps run sequentially when the button is clicked. Execution stops on the first failing step unless that step has `continueOnError: true`.",
+          "items": { "$ref": "#/definitions/CommandStep" }
+        }
+      }
+    },
+    "CommandStep": {
+      "oneOf": [
+        { "$ref": "#/definitions/VSCodeCommandStep" },
+        { "$ref": "#/definitions/ShellCommandStep" }
+      ]
+    },
+    "VSCodeCommandStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "command"],
+      "description": "Invokes a built-in or extension-contributed VSCode command.",
+      "properties": {
+        "type": {
+          "const": "vscode",
+          "description": "Run a VSCode command via `vscode.commands.executeCommand`."
+        },
+        "command": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Command identifier. Use `Developer: Inspect Context Keys` or browse the Command Palette to discover IDs.",
+          "examples": [
+            "workbench.action.files.saveAll",
+            "editor.action.formatDocument",
+            "workbench.view.scm",
+            "git.sync"
+          ]
+        },
+        "args": {
+          "type": "array",
+          "description": "Optional arguments forwarded to the command.",
+          "items": {}
+        }
+      }
+    },
+    "ShellCommandStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "command"],
+      "description": "Runs a shell command in a managed pseudo-terminal with full stdin/stdout and Ctrl+C support.",
+      "properties": {
+        "type": {
+          "const": "shell",
+          "description": "Run a shell command in a managed terminal."
+        },
+        "command": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Shell command line. Runs in the user's default shell.",
+          "examples": [
+            "npm run dev",
+            "mvn clean install",
+            "docker compose up",
+            "cargo build --release"
+          ]
+        },
+        "cwd": {
+          "type": "string",
+          "description": "Working directory for the command. Relative paths resolve against the first workspace folder. Supports `${workspaceFolder}` and `${workspaceFolder:<name>}` placeholders for multi-root workspaces.",
+          "examples": ["${workspaceFolder}", "${workspaceFolder:backend}", "packages/api"]
+        },
+        "continueOnError": {
+          "type": "boolean",
+          "default": false,
+          "description": "If `true`, subsequent steps in the same button still run when this step fails. Use for non-blocking checks like linters or formatters."
+        }
+      }
+    }
+  }
+}
