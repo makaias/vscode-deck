@@ -11,7 +11,10 @@ export class DeckViewProvider implements vscode.WebviewViewProvider {
     private config: ConfigLoader,
     private runner: CommandRunner,
   ) {
-    config.onDidChange(() => this.push());
+    context.subscriptions.push(
+      config.onDidChange(() => this.push()),
+      runner.onDidChangeRunning((keys) => this.pushRunState(keys)),
+    );
   }
 
   resolveWebviewView(view: vscode.WebviewView) {
@@ -24,6 +27,7 @@ export class DeckViewProvider implements vscode.WebviewViewProvider {
       view.webview,
       this.context.extensionUri,
       this.renderedConfig(this.config.config),
+      this.runner.runningKeys,
     );
     view.webview.onDidReceiveMessage((msg) => this.onMessage(msg));
   }
@@ -39,13 +43,20 @@ export class DeckViewProvider implements vscode.WebviewViewProvider {
       this.view.webview,
       this.context.extensionUri,
       this.renderedConfig(this.config.config),
+      this.runner.runningKeys,
     );
   }
 
-  private async onMessage(msg: { type: string; index?: number }) {
+  private pushRunState(keys: ReadonlySet<string>) {
+    this.view?.webview.postMessage({ type: 'runState', running: Array.from(keys) });
+  }
+
+  private async onMessage(msg: { type: string; index?: number; key?: string }) {
     if (msg.type === 'run' && typeof msg.index === 'number') {
       const btn = this.config.config.buttons[msg.index];
-      if (btn) this.runner.run(btn.title, btn.commands);
+      if (btn) this.runner.run(btn.title, btn.commands, String(msg.index));
+    } else if (msg.type === 'cancel' && typeof msg.key === 'string') {
+      this.runner.cancel(msg.key);
     } else if (msg.type === 'openFloating') {
       vscode.commands.executeCommand('vscodeDeck.openFloating');
     } else if (msg.type === 'editConfig') {

@@ -49,6 +49,7 @@ export class DeckPanel {
       panel.webview,
       context.extensionUri,
       config.config,
+      runner.runningKeys,
     );
     this.disposables.push(
       this.panel.onDidDispose(() => this.dispose()),
@@ -58,15 +59,24 @@ export class DeckPanel {
           this.panel.webview,
           this.context.extensionUri,
           c,
+          this.runner.runningKeys,
         );
+      }),
+      this.runner.onDidChangeRunning((keys) => {
+        this.panel.webview.postMessage({
+          type: 'runState',
+          running: Array.from(keys),
+        });
       }),
     );
   }
 
-  private async onMessage(msg: { type: string; index?: number }) {
+  private async onMessage(msg: { type: string; index?: number; key?: string }) {
     if (msg.type === 'run' && typeof msg.index === 'number') {
       const btn = this.config.config.buttons[msg.index];
-      if (btn) this.runner.run(btn.title, btn.commands);
+      if (btn) this.runner.run(btn.title, btn.commands, String(msg.index));
+    } else if (msg.type === 'cancel' && typeof msg.key === 'string') {
+      this.runner.cancel(msg.key);
     } else if (msg.type === 'editConfig') {
       vscode.commands.executeCommand('vscodeDeck.editConfig');
     }

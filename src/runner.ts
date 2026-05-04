@@ -88,6 +88,10 @@ class DeckPty implements vscode.Pseudoterminal {
     }
   }
 
+  cancelCurrent(): void {
+    this.killChild();
+  }
+
   private write(data: string) {
     if (this.opened) {
       this.writeEmitter.fire(data);
@@ -132,32 +136,83 @@ class DeckPty implements vscode.Pseudoterminal {
   }
 }
 
+interface ActiveRun {
+  pty?: DeckPty;
+  cancelled: boolean;
+}
+
 export class CommandRunner {
-  async run(label: string, steps: CommandStep[]): Promise<void> {
-    let pty: DeckPty | undefined;
+  private active = new Map<string, ActiveRun>();
+  private emitter = new vscode.EventEmitter<ReadonlySet<string>>();
+  readonly onDidChangeRunning = this.emitter.event;
+
+  get runningKeys(): ReadonlySet<string> {
+    return new Set(this.active.keys());
+  }
+
+  isRunning(runKey: string): boolean {
+    return this.active.has(runKey);
+  }
+
+  cancel(runKey: string): boolean {
+    const run = this.active.get(runKey);
+    if (!run) return false;
+    run.cancelled = true;
+    run.pty?.cancelCurrent();
+    return true;
+  }
+
+  private fireChange() {
+    this.emitter.fire(this.runningKeys);
+  }
+
+  async run(label: string, steps: CommandStep[], runKey?: string): Promise<void> {
+    // Click-to-cancel: a run() call with the key of an already-active run cancels it.
+    if (runKey && this.active.has(runKey)) {
+      this.cancel(runKey);
+      return;
+    }
+
+    const run: ActiveRun = { cancelled: false };
+    if (runKey) {
+      this.active.set(runKey, run);
+      this.fireChange();
+    }
+
     const ensurePty = (): DeckPty => {
-      if (pty) return pty;
-      pty = new DeckPty();
+      if (run.pty) return run.pty;
+      run.pty = new DeckPty();
       const terminal = vscode.window.createTerminal({
         name: `Deck: ${label}`,
-        pty,
+        pty: run.pty,
       });
       terminal.show(true);
-      pty.writeLine(
+      run.pty.writeLine(
         `\x1b[1m=== ${label} (${new Date().toLocaleTimeString()}) ===\x1b[0m`,
       );
-      return pty;
+      return run.pty;
     };
+
+    let aborted = false;
     try {
       for (let i = 0; i < steps.length; i++) {
+        if (run.cancelled) {
+          aborted = true;
+          break;
+        }
         const step = steps[i];
         if (step.type === 'vscode') {
-          pty?.writeLine(`\x1b[36m> vscode: ${step.command}\x1b[0m`);
+          run.pty?.writeLine(`\x1b[36m> vscode: ${step.command}\x1b[0m`);
           await vscode.commands.executeCommand(step.command, ...(step.args ?? []));
         } else if (step.type === 'shell') {
           const p = ensurePty();
           const effectiveCwd = resolveCwd(step.cwd);
           const code = await p.runCommand(step.command, effectiveCwd);
+          if (run.cancelled) {
+            p.writeLine('\x1b[31m! cancelled\x1b[0m');
+            aborted = true;
+            break;
+          }
           if (code !== 0 && !step.continueOnError) {
             const hasMore = i < steps.length - 1;
             if (hasMore) {
@@ -165,18 +220,31 @@ export class CommandRunner {
                 `\x1b[31m! exited with code ${code}; aborting chain\x1b[0m`,
               );
             }
-            return;
+            aborted = true;
+            break;
           }
         }
       }
-      pty?.writeLine('\x1b[32m=== done ===\x1b[0m');
+      if (!aborted) {
+        run.pty?.writeLine('\x1b[32m=== done ===\x1b[0m');
+      }
     } catch (err) {
-      pty?.writeLine(`\x1b[31m! error: ${(err as Error).message}\x1b[0m`);
+      run.pty?.writeLine(`\x1b[31m! error: ${(err as Error).message}\x1b[0m`);
       vscode.window.showErrorMessage(`VSCode Deck: ${(err as Error).message}`);
+    } finally {
+      if (runKey) {
+        this.active.delete(runKey);
+        this.fireChange();
+      }
     }
   }
 
   dispose() {
-    /* terminals are owned by VSCode once created */
+    for (const run of this.active.values()) {
+      run.cancelled = true;
+      run.pty?.cancelCurrent();
+    }
+    this.active.clear();
+    this.emitter.dispose();
   }
 }

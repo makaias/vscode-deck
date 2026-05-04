@@ -1,6 +1,7 @@
 (function () {
   const vscode = acquireVsCodeApi();
   let config = window.__deckConfig || { columns: 4, buttons: [], mode: 'sidebar' };
+  const running = new Set((window.__deckRunning || []).map(String));
   const root = document.getElementById('root');
   const savedState = (vscode.getState && vscode.getState()) || {};
   const collapsedCategories = new Set(savedState.collapsed || []);
@@ -92,6 +93,7 @@
     const el = document.createElement('button');
     el.className = 'deck-button';
     el.type = 'button';
+    el.dataset.deckIndex = String(index);
     if (button.color) el.style.borderTopColor = button.color;
     const content = document.createElement('div');
     content.className = 'deck-content';
@@ -102,9 +104,47 @@
     title.textContent = button.title || '';
     content.appendChild(title);
     el.appendChild(content);
-    el.onclick = () => vscode.postMessage({ type: 'run', index: index });
+
+    const overlay = document.createElement('div');
+    overlay.className = 'deck-running-overlay';
+    overlay.setAttribute('aria-hidden', 'true');
+    const spinner = document.createElement('div');
+    spinner.className = 'deck-spinner';
+    const stop = document.createElement('div');
+    stop.className = 'deck-stop-icon';
+    overlay.appendChild(spinner);
+    overlay.appendChild(stop);
+    el.appendChild(overlay);
+
+    el.onclick = () => {
+      const key = String(index);
+      if (running.has(key)) {
+        vscode.postMessage({ type: 'cancel', key: key });
+      } else {
+        vscode.postMessage({ type: 'run', index: index });
+      }
+    };
     el.addEventListener('mouseenter', () => measureButton(el));
+    applyRunningState(el);
     return el;
+  }
+
+  function applyRunningState(btn) {
+    const key = btn.dataset.deckIndex;
+    if (key !== undefined && running.has(key)) {
+      btn.classList.add('deck-running');
+      btn.setAttribute('aria-busy', 'true');
+      btn.title = 'Click to stop';
+    } else {
+      btn.classList.remove('deck-running');
+      btn.removeAttribute('aria-busy');
+      btn.removeAttribute('title');
+    }
+  }
+
+  function syncRunningDom() {
+    const buttons = root.querySelectorAll('.deck-button[data-deck-index]');
+    buttons.forEach(applyRunningState);
   }
 
   function renderGrid(items) {
@@ -198,6 +238,11 @@
     if (msg.type === 'config') {
       config = msg.config;
       render();
+    } else if (msg.type === 'runState') {
+      running.clear();
+      const next = Array.isArray(msg.running) ? msg.running : [];
+      for (const key of next) running.add(String(key));
+      syncRunningDom();
     }
   });
 

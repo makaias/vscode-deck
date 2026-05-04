@@ -60,6 +60,7 @@ body {
 }
 
 .deck-button {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -180,4 +181,70 @@ body {
 
 .open-floating:hover {
   background: var(--vscode-button-hoverBackground);
+}
+
+.deck-running-overlay {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+.deck-running .deck-running-overlay {
+  display: flex;
+}
+
+.deck-running .deck-content {
+  opacity: 0.25;
+}
+
+.deck-running {
+  border-top-color: var(--vscode-progressBar-background, var(--vscode-focusBorder)) !important;
+  animation: deck-running-pulse 1.6s ease-in-out infinite;
+}
+
+.deck-running:hover {
+  background: var(--vscode-inputValidation-errorBackground, var(--vscode-button-secondaryHoverBackground));
+}
+
+.deck-spinner {
+  width: calc(var(--deck-icon-size, 28px) * 0.85);
+  height: calc(var(--deck-icon-size, 28px) * 0.85);
+  border: 2px solid var(--vscode-progressBar-background, currentColor);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: deck-spin 0.9s linear infinite;
+}
+
+.deck-stop-icon {
+  display: none;
+  width: calc(var(--deck-icon-size, 28px) * 0.6);
+  height: calc(var(--deck-icon-size, 28px) * 0.6);
+  background: var(--vscode-errorForeground, currentColor);
+  border-radius: 2px;
+}
+
+.deck-running:hover .deck-spinner {
+  display: none;
+}
+
+.deck-running:hover .deck-stop-icon {
+  display: block;
+}
+
+@keyframes deck-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes deck-running-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deck-spinner { animation: none; }
+  .deck-running { animation: none; }
 }

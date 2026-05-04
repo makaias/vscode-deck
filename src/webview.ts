@@ -9,6 +9,7 @@ export function getHtml(
   webview: vscode.Webview,
   extensionUri: vscode.Uri,
   config: RenderedConfig,
+  running: ReadonlySet<string> = new Set(),
 ): string {
   const nonce = getNonce();
   const scriptUri = webview.asWebviewUri(
@@ -37,7 +38,10 @@ export function getHtml(
 </head>
 <body${bodyStyle}>
 <div id="root"></div>
-<script nonce="${nonce}">window.__deckConfig = ${JSON.stringify(config)};</script>
+<script nonce="${nonce}">
+window.__deckConfig = ${JSON.stringify(config)};
+window.__deckRunning = ${JSON.stringify(Array.from(running))};
+</script>
 <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>
 </html>`;
