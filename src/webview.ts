@@ -24,6 +24,10 @@ export function getHtml(
     `img-src ${webview.cspSource} https: data:`,
     `script-src 'nonce-${nonce}'`,
   ].join('; ');
+  const bodyStyle =
+    typeof config.iconSize === 'number' && config.iconSize > 0
+      ? ` style="--deck-icon-size: ${config.iconSize}px"`
+      : '';
   return `<!doctype html>
 <html>
 <head>
@@ -31,7 +35,7 @@ export function getHtml(
 <meta http-equiv="Content-Security-Policy" content="${csp}">
 <link rel="stylesheet" href="${styleUri}">
 </head>
-<body>
+<body${bodyStyle}>
 <div id="root"></div>
 <script nonce="${nonce}">window.__deckConfig = ${JSON.stringify(config)};</script>
 <script nonce="${nonce}" src="${scriptUri}"></script>

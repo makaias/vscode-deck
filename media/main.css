@@ -119,22 +119,22 @@ body {
 }
 
 .deck-icon {
-  font-size: 24px;
+  font-size: calc(var(--deck-icon-size, 28px) * 0.857);
   line-height: 1;
   margin-bottom: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 26px;
+  min-height: calc(var(--deck-icon-size, 28px) - 2px);
   flex: 0 0 auto;
 }
 
 .deck-icon img,
 .deck-icon .deck-icon-svg {
-  width: 28px;
-  height: 28px;
-  max-width: 28px;
-  max-height: 28px;
+  width: var(--deck-icon-size, 28px);
+  height: var(--deck-icon-size, 28px);
+  max-width: var(--deck-icon-size, 28px);
+  max-height: var(--deck-icon-size, 28px);
 }
 
 .deck-title {

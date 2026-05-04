@@ -114,9 +114,10 @@ The config lives at **`.vscode/deck.json`** (relative to the first workspace fol
 
 | Field     | Type                        | Default     | Description                                                                                         |
 |-----------|-----------------------------|-------------|-----------------------------------------------------------------------------------------------------|
-| `mode`    | `"sidebar"` \| `"floating"` | `"sidebar"` | `sidebar` renders the grid in the Activity Bar panel. `floating` shows a placeholder with a button to open a popped-out window. |
-| `columns` | number                      | `4`         | Number of buttons per row.                                                                          |
-| `buttons` | `DeckButton[]`              | `[]`        | The buttons.                                                                                        |
+| `mode`     | `"sidebar"` \| `"floating"` | `"sidebar"` | `sidebar` renders the grid in the Activity Bar panel. `floating` shows a placeholder with a button to open a popped-out window. |
+| `columns`  | number                      | `4`         | Number of buttons per row.                                                                          |
+| `iconSize` | number                      | `28`        | Icon size in pixels. Applies to image, SVG, emoji, and text icons. Omit for the default.            |
+| `buttons`  | `DeckButton[]`              | `[]`        | The buttons.                                                                                        |
 
 ### Button fields
 
@@ -188,7 +189,7 @@ Relative or absolute file path.
   "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M12 5v14\"/><path d=\"M5 12h14\"/></svg>"
 }
 ```
-Inline SVG. Sized automatically to 28×28. For theme-aware icons, use `fill="currentColor"` (filled-style) or `stroke="currentColor"` with `fill="none"` (outline-style, e.g. Lucide, Feather, Tabler). Explicit colors in `<path>` are preserved.
+Inline SVG. Sized automatically to the configured icon size (default 28×28; override with the top-level `iconSize` field). For theme-aware icons, use `fill="currentColor"` (filled-style) or `stroke="currentColor"` with `fill="none"` (outline-style, e.g. Lucide, Feather, Tabler). Explicit colors in `<path>` are preserved.
 
 ---
 

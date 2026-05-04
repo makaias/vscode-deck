@@ -18,6 +18,7 @@ export interface DeckButton {
 export interface DeckConfig {
   mode: 'sidebar' | 'floating';
   columns: number;
+  iconSize?: number;
   buttons: DeckButton[];
 }
 
@@ -151,6 +152,10 @@ export class ConfigLoader implements vscode.Disposable {
       this._config = {
         mode: parsed.mode === 'floating' ? 'floating' : 'sidebar',
         columns: typeof parsed.columns === 'number' ? parsed.columns : DEFAULT_CONFIG.columns,
+        iconSize:
+          typeof parsed.iconSize === 'number' && parsed.iconSize > 0
+            ? parsed.iconSize
+            : undefined,
         buttons: Array.isArray(parsed.buttons) ? parsed.buttons : [],
       };
     } catch (err) {
