@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- **Input prompts in commands** — `${input:name}` and `${input:name:default}` placeholders in any string field (shell `command`, shell `cwd`, vscode `args`) prompt the user when the button is clicked. Same name used multiple times in a chain prompts only once. Pressing Escape on any prompt aborts the chain cleanly.
+- **Search & filter** — both the deck (sidebar/floating) and the editor have a search bar that filters buttons by title, id, and category in real time. Categories with no matches are hidden; collapsed categories with matches expand automatically while the search is active. Deck-side query is persisted across reloads.
+- **Last-run status indicator** — small green/red/yellow dot in each button's top-right corner showing the last run's outcome (success/failure/cancelled). Hidden during runs (the spinner takes over). Terminal output also gains a colored footer (`=== done ===` / `=== failed (exit N) ===` / `=== cancelled ===`).
+- **Terminal reuse per button** — repeated clicks on the same button reuse one terminal instead of spawning a new one each time. The terminal pty is preserved across runs (including cancels). Manually closing a cached terminal drops it from the cache; next run creates a fresh one.
+- **Local-file icons that actually load** — `"icon": "./icons/build.png"` and similar paths now resolve through `webview.asWebviewUri()` and `localResourceRoots`, so the README's claim that local paths work is finally true. Icons outside the workspace are supported too (their parent dirs are added to the resource roots dynamically).
+- **Cross-platform reliability** — POSIX kill escalates to `SIGKILL` after a 1-second grace period if a process ignores `SIGTERM`, matching the immediate-kill semantics of Windows `taskkill /T /F`. `cwd` substitution normalizes mixed forward/backward slashes on Windows.
+
 ## 0.1.0
 
 - **JSON schema for `.vscode/deck.json`** — IntelliSense, type-checking, hover docs, and an inline color picker via `contributes.jsonValidation`. Catches typos like `commmand` at edit time.

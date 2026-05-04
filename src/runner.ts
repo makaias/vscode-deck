@@ -47,6 +47,87 @@ function killTree(pid: number) {
   }, 1000).unref();
 }
 
+// Matches `${input:name}` or `${input:name:default}`. The name captures
+// anything up to a colon or closing brace; the default (optional) captures
+// anything up to the closing brace, so it can include spaces and special chars.
+const INPUT_RE = /\$\{input:([^:}]+)(?::([^}]*))?\}/g;
+
+function collectInputs(
+  value: unknown,
+  into: Map<string, string | undefined>,
+): void {
+  if (typeof value === 'string') {
+    INPUT_RE.lastIndex = 0;
+    let m: RegExpExecArray | null;
+    while ((m = INPUT_RE.exec(value)) !== null) {
+      const name = m[1];
+      const def = m[2];
+      if (!into.has(name)) into.set(name, def);
+    }
+    return;
+  }
+  if (Array.isArray(value)) {
+    for (const v of value) collectInputs(v, into);
+    return;
+  }
+  if (value && typeof value === 'object') {
+    for (const v of Object.values(value)) collectInputs(v, into);
+  }
+}
+
+function substituteValue<T>(value: T, values: ReadonlyMap<string, string>): T {
+  if (typeof value === 'string') {
+    return value.replace(INPUT_RE, (whole, name) =>
+      values.has(name) ? values.get(name)! : whole,
+    ) as unknown as T;
+  }
+  if (Array.isArray(value)) {
+    return value.map((v) => substituteValue(v, values)) as unknown as T;
+  }
+  if (value && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value)) {
+      out[k] = substituteValue(v, values);
+    }
+    return out as unknown as T;
+  }
+  return value;
+}
+
+async function promptForInputs(
+  label: string,
+  inputs: Map<string, string | undefined>,
+): Promise<Map<string, string> | undefined> {
+  const values = new Map<string, string>();
+  for (const [name, defaultValue] of inputs) {
+    const value = await vscode.window.showInputBox({
+      title: `Deck: ${label}`,
+      prompt: name,
+      value: defaultValue ?? '',
+      valueSelection:
+        defaultValue && defaultValue.length > 0
+          ? [0, defaultValue.length]
+          : undefined,
+      ignoreFocusOut: true,
+    });
+    if (value === undefined) return undefined; // user pressed Escape
+    values.set(name, value);
+  }
+  return values;
+}
+
+async function prepareSteps(
+  steps: CommandStep[],
+  label: string,
+): Promise<CommandStep[] | undefined> {
+  const inputs = new Map<string, string | undefined>();
+  for (const step of steps) collectInputs(step, inputs);
+  if (inputs.size === 0) return steps;
+  const values = await promptForInputs(label, inputs);
+  if (!values) return undefined;
+  return steps.map((step) => substituteValue(step, values));
+}
+
 function crlf(s: string): string {
   return s.replace(/\r?\n/g, '\r\n');
 }
@@ -258,6 +339,20 @@ export class CommandRunner {
       this.active.set(runKey, run);
       this.fireRunning();
     }
+
+    // Collect any `${input:name}` placeholders from the chain and prompt for
+    // them upfront. Returns undefined if the user pressed Escape on any prompt
+    // — in that case we abort cleanly without setting a status (the chain
+    // never actually started).
+    const prepared = await prepareSteps(steps, label);
+    if (!prepared || run.cancelled) {
+      if (runKey) {
+        this.active.delete(runKey);
+        this.fireRunning();
+      }
+      return;
+    }
+    steps = prepared;
 
     const ensurePty = (): DeckPty => {
       if (run.pty) return run.pty;

@@ -109,7 +109,7 @@
         },
         "args": {
           "type": "array",
-          "description": "Optional arguments forwarded to the command.",
+          "description": "Optional arguments forwarded to the command. String values support `${input:name}` and `${input:name:default}` placeholders — these prompt the user when the button is clicked, and the entered value replaces the placeholder.",
           "items": {}
         }
       }
@@ -127,11 +127,12 @@
         "command": {
           "type": "string",
           "minLength": 1,
-          "description": "Shell command line. Runs in the user's default shell.",
+          "description": "Shell command line. Runs in the user's default shell.\n\nSupports `${input:name}` and `${input:name:default}` placeholders — when the button is clicked, the user is prompted for each unique input. Example: `git checkout ${input:branch:main}` prompts for a branch name (defaulting to `main`).",
           "examples": [
             "npm run dev",
             "mvn clean install",
             "docker compose up",
+            "git checkout ${input:branch:main}",
             "cargo build --release"
           ]
         },

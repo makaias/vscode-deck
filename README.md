@@ -14,6 +14,7 @@ Designed as a single place to collect the commands you run the most: `mvn clean 
 - **Running indicator with click-to-cancel** — buttons show a spinner while running; click again to kill the process tree.
 - **Full keybinding support** — bind a key to any extension command, or to a specific deck button via `vscodeDeck.runButton`.
 - **VSCode commands and shell commands** in the same button, chained sequentially.
+- **Input prompts** — `${input:branch}` placeholders prompt the user when the button is clicked, turning one button into a parameterizable launcher.
 - **Real terminal for shell commands** — full `Ctrl+C` support, interactive stdin, proper shell quoting on Windows and Unix.
 - **Parallel execution** — each button press spawns its own named terminal; clicking again while one is running cancels it.
 - **Lazy terminal** — buttons that run only VSCode commands (e.g. Save All) execute silently without opening a terminal.
@@ -150,15 +151,15 @@ Two step types, discriminated by `type`:
 |-----------|-----------------|----------|-----------------------------------------------------------------------------|
 | `type`    | `"vscode"`      | yes      | Discriminator.                                                              |
 | `command` | string          | yes      | The command ID, e.g. `workbench.action.files.saveAll`.                     |
-| `args`    | array           | no       | Arguments passed to `executeCommand`.                                       |
+| `args`    | array           | no       | Arguments passed to `executeCommand`. String values support [input prompts](#input-prompts). |
 
 **`shell`** — runs a shell command.
 
 | Field              | Type       | Required | Description                                                                                                                     |
 |--------------------|------------|----------|---------------------------------------------------------------------------------------------------------------------------------|
 | `type`             | `"shell"`  | yes      | Discriminator.                                                                                                                  |
-| `command`          | string     | yes      | The shell command line, exactly as you'd type it.                                                                               |
-| `cwd`              | string     | no       | Working directory. Supports `${workspaceFolder}` and `${workspaceFolder:<name>}`. Defaults to the first workspace folder.       |
+| `command`          | string     | yes      | The shell command line, exactly as you'd type it. Supports [input prompts](#input-prompts).                                     |
+| `cwd`              | string     | no       | Working directory. Supports `${workspaceFolder}`, `${workspaceFolder:<name>}`, and [input prompts](#input-prompts). Defaults to the first workspace folder. |
 | `continueOnError`  | boolean    | no       | When `true`, a non-zero exit code does **not** abort the chain. Use for linters/checkers that exit non-zero to signal findings. |
 
 ---
@@ -384,6 +385,74 @@ Shell commands run via `child_process.spawn` with `shell: true`, which on Window
 
 ```json
 { "type": "shell", "command": "\"C:\\tools\\mvn\\bin\\mvn\" install -f \"C:\\Projects\\app\\pom.xml\"" }
+```
+
+---
+
+## Input prompts
+
+Any string field (shell `command`, shell `cwd`, or any string inside vscode `args`) can contain `${input:<name>}` placeholders. When you click the button, Deck prompts for each unique input *upfront*, then runs the chain with the values substituted.
+
+### Syntax
+
+| Form                              | Behavior                                                                                |
+|-----------------------------------|-----------------------------------------------------------------------------------------|
+| `${input:branch}`                 | Prompts for `branch`, no default value.                                                 |
+| `${input:branch:main}`            | Prompts for `branch`, pre-filled with `main` (selected so you can type to overwrite).   |
+| `${input:port:3000}` (used twice) | Same name appears multiple times → prompts once, value reused everywhere.               |
+
+If you press **Escape** on any prompt, the entire chain aborts cleanly — no commands run, no status dot appears.
+
+### Examples
+
+Prompt for a branch when checking out:
+
+```json
+{
+  "title": "Checkout branch",
+  "icon": "🌿",
+  "commands": [
+    { "type": "shell", "command": "git checkout ${input:branch:main}" }
+  ]
+}
+```
+
+Prompt for a port and use it both in the dev server and the browser-open command:
+
+```json
+{
+  "title": "Dev (custom port)",
+  "icon": "▶️",
+  "commands": [
+    { "type": "shell", "command": "npm run dev -- --port ${input:port:3000}" },
+    { "type": "vscode", "command": "vscode.open", "args": ["http://localhost:${input:port:3000}"] }
+  ]
+}
+```
+
+Prompt for a commit message before committing:
+
+```json
+{
+  "title": "Commit",
+  "icon": "💬",
+  "commands": [
+    { "type": "shell", "command": "git commit -m \"${input:message}\"" }
+  ]
+}
+```
+
+Multi-input chain (release tag flow):
+
+```json
+{
+  "title": "Tag release",
+  "icon": "🏷️",
+  "commands": [
+    { "type": "shell", "command": "git tag -a ${input:version} -m \"${input:notes}\"" },
+    { "type": "shell", "command": "git push origin ${input:version}" }
+  ]
+}
 ```
 
 ---
