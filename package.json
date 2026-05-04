@@ -2,11 +2,37 @@
   "name": "vscode-deck",
   "displayName": "VSCode Deck",
   "description": "Stream Deck-style button grid for VSCode — trigger VSCode commands and shell commands from a configurable grid.",
-  "version": "0.0.1",
-  "publisher": "local",
+  "version": "0.1.0",
+  "publisher": "makaias",
+  "license": "MIT",
   "engines": {
     "vscode": "^1.85.0"
   },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "stream deck",
+    "buttons",
+    "shortcuts",
+    "launcher",
+    "tasks",
+    "command palette",
+    "macros"
+  ],
+  "icon": "media/icon.png",
+  "galleryBanner": {
+    "color": "#1e293b",
+    "theme": "dark"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/makaias/vscode-deck.git"
+  },
+  "bugs": {
+    "url": "https://github.com/makaias/vscode-deck/issues"
+  },
+  "homepage": "https://github.com/makaias/vscode-deck#readme",
   "main": "./out/extension.js",
   "activationEvents": [],
   "contributes": {
@@ -82,11 +108,14 @@
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./"
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package",
+    "publish": "vsce publish"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
     "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.0.0",
     "typescript": "^5.3.3"
   }
 }

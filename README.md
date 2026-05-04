@@ -9,9 +9,13 @@ Designed as a single place to collect the commands you run the most: `mvn clean 
 ## Features
 
 - **Sidebar or floating window** — pick your layout in the config.
+- **Visual editor** — drag-and-drop reorder within and across categories, inline edit, live preview. No JSON required.
+- **IntelliSense in `deck.json`** — autocomplete, type-checking, hover docs, and inline color picker via a bundled JSON schema.
+- **Running indicator with click-to-cancel** — buttons show a spinner while running; click again to kill the process tree.
+- **Full keybinding support** — bind a key to any extension command, or to a specific deck button via `vscodeDeck.runButton`.
 - **VSCode commands and shell commands** in the same button, chained sequentially.
 - **Real terminal for shell commands** — full `Ctrl+C` support, interactive stdin, proper shell quoting on Windows and Unix.
-- **Parallel execution** — each button press spawns its own named terminal; clicking again while one is running just opens another.
+- **Parallel execution** — each button press spawns its own named terminal; clicking again while one is running cancels it.
 - **Lazy terminal** — buttons that run only VSCode commands (e.g. Save All) execute silently without opening a terminal.
 - **Collapsible categories** — group related buttons under headers that remember their state across sessions.
 - **Overflow-scroll on hover** — long titles automatically slide to reveal the rest when you hover.
@@ -23,7 +27,9 @@ Designed as a single place to collect the commands you run the most: `mvn clean 
 
 ## Installation
 
-This isn't on the marketplace. To run locally:
+**From the VS Code Marketplace** — search for *VSCode Deck* in the Extensions sidebar (`Ctrl+Shift+X`) and click Install.
+
+**From source** — clone, build, and launch the Extension Development Host:
 
 ```
 git clone https://github.com/makaias/vscode-deck.git
@@ -33,10 +39,10 @@ npm install
 
 Open the folder in VSCode and press **F5** — that launches an Extension Development Host window with the extension loaded. The Deck icon (a grid) appears in the Activity Bar.
 
-To package for sideloading:
+**As a `.vsix` package** — for sideloading or sharing internally:
 
 ```
-npx @vscode/vsce package
+npm run package
 ```
 
 That produces a `.vsix` you can install via **Extensions: Install from VSIX…** in the command palette.
@@ -48,9 +54,11 @@ code --install-extension vscode-deck-0.0.1.vsix
 
 ## Getting started
 
-1. Click the **Deck** icon in the Activity Bar (grid icon). The sidebar opens empty.
-2. Run **`Deck: Generate Configuration from Workspace`** from the command palette (`Ctrl+Shift+P`). This scans your workspace and writes a starter `.vscode/deck.json` with buttons tailored to the tools it finds.
-3. Or run **`Deck: Edit Configuration`** to open an empty `.vscode/deck.json` and author buttons yourself.
+1. Click the **Deck** icon in the Activity Bar (grid icon). The sidebar opens empty, with two buttons: **Open visual editor** and **or edit JSON directly**.
+2. Three ways in:
+   - **`Deck: Edit Buttons (Visual)`** — opens the drag-and-drop editor. Recommended for first-time users.
+   - **`Deck: Generate Configuration from Workspace`** — scans your workspace and writes a starter `.vscode/deck.json` with buttons tailored to the tools it finds.
+   - **`Deck: Edit Configuration`** — opens `.vscode/deck.json` directly. You'll get autocomplete, type-checking, and inline docs for every field.
 
 The config file is watched — saves are picked up instantly, no reload required.
 
@@ -59,6 +67,8 @@ The config file is watched — saves are picked up instantly, no reload required
 ## Configuration
 
 The config lives at **`.vscode/deck.json`** (relative to the first workspace folder). Path is overridable via the `vscodeDeck.configPath` setting.
+
+> Editing `deck.json` directly triggers IntelliSense — autocomplete on `mode`, `type`, `command`, etc., red squigglies on typos, hover descriptions on every field, and an inline color picker for `color`. The bundled JSON schema is registered automatically; no setup required.
 
 ### Minimal config
 
@@ -124,6 +134,7 @@ The config lives at **`.vscode/deck.json`** (relative to the first workspace fol
 | Field      | Type                                       | Required | Description                                                                                   |
 |------------|--------------------------------------------|----------|-----------------------------------------------------------------------------------------------|
 | `title`    | string                                     | yes      | Shown under the icon.                                                                         |
+| `id`       | string                                     | no       | Stable identifier used by [keyboard shortcuts](#keyboard-shortcuts). Survives title renames. |
 | `icon`     | string                                     | no       | Emoji/text, image URL/path, or inline SVG. See [Icons](#icons).                              |
 | `color`    | CSS color                                  | no       | Overrides the top border accent color (the thin strip at the top of the button).              |
 | `category` | string                                     | no       | Groups this button under a collapsible category header. Omit for a flat, ungrouped layout.    |
@@ -158,10 +169,67 @@ Available from the command palette (`Ctrl+Shift+P`):
 
 | Command                                              | Description                                                                                                                               |
 |------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|
+| `Deck: Show in Sidebar`                              | Focuses the deck in the Activity Bar. Bind to a shortcut to summon the deck instantly.                                                    |
+| `Deck: Edit Buttons (Visual)`                        | Opens the drag-and-drop editor. See [Visual editor](#visual-editor).                                                                      |
 | `Deck: Edit Configuration`                           | Opens `.vscode/deck.json`, creating an empty one if it doesn't exist.                                                                     |
 | `Deck: Generate Configuration from Workspace`        | Scans all workspace folders and immediate subdirectories, then writes a tailored config. Prompts before overwriting existing buttons.     |
 | `Deck: Reload Configuration`                         | Force-reloads the config file (normally automatic via file watcher).                                                                      |
 | `Deck: Open in Floating Window`                      | Opens the deck in a webview panel that you can drag to a separate OS window.                                                              |
+| `Deck: Run Button (by id or title)`                  | Runs a specific deck button. Used in keyboard shortcuts — see [Keyboard shortcuts](#keyboard-shortcuts).                                  |
+
+---
+
+## Visual editor
+
+Run **`Deck: Edit Buttons (Visual)`** to open a dedicated editor — no JSON required.
+
+- **Drag-and-drop reorder**: each button has a dotted handle on its left. Drag within a category to reorder, or drop into another category's section to recategorize. Empty categories show a drop zone.
+- **Categories**: click **`+ New category`** at the top to add one — it's named *New category* by default and the rename input auto-focuses. Each category has ▲▼ arrows to reorder, × to delete (its buttons move to Uncategorized after confirmation), and inline rename (renaming to an existing name merges; renaming to empty moves buttons to Uncategorized).
+- **Editing a button**: click any card to expand it. Title, icon (with live preview), color (text input + native color picker), category (move-to dropdown), and commands list with add/delete/reorder per step.
+- **Save semantics**: explicit save (Ctrl/Cmd+S or the Save button) — the editor's working copy is independent of the file on disk, so external edits don't fight live keystrokes. The header shows `Unsaved changes` / `Saved` status. **Reload** pulls the latest from disk, prompting if you have unsaved work.
+
+---
+
+## Keyboard shortcuts
+
+Every command and every deck button can be bound to a key.
+
+### Binding extension commands
+
+Open **File → Preferences → Keyboard Shortcuts** (`Ctrl+K Ctrl+S`), search for `Deck:`, click the `+` next to any entry, and press your keys. All commands listed in the [Commands](#commands) table are bindable.
+
+### Binding individual buttons
+
+The `vscodeDeck.runButton` command takes a button identifier as `args`:
+
+```json
+{ "key": "ctrl+alt+b", "command": "vscodeDeck.runButton", "args": "Build" }
+```
+
+The match precedence is **`id` first, then `title`**. Set the optional `id` field on a button if you want the binding to survive title renames:
+
+```json
+{ "title": "Build & Test", "id": "build", "commands": [...] }
+```
+
+For ambiguous titles (same title in different categories), use the object form:
+
+```json
+{ "key": "ctrl+alt+t", "command": "vscodeDeck.runButton",
+  "args": { "title": "Test", "category": "Backend" } }
+```
+
+If the target isn't found, you get an error toast naming the missing identifier.
+
+The visual editor includes a **Copy keybinding** button per card that copies a ready-to-paste snippet to your clipboard — paste it into `keybindings.json` and fill in the `"key"` field.
+
+Pressing the bound key while the button is already running **cancels** it (same click-to-cancel behavior as the deck UI).
+
+---
+
+## Running state
+
+While a button's commands are executing, the button shows a spinner with a dimmed icon, and its top border switches to the VS Code progress color and pulses. Hovering reveals a red stop square — clicking the running button kills the process tree (Windows: `taskkill /T /F`; POSIX: SIGTERM to the process group) and aborts the chain. The mechanism keys by button index, so triggering via keybinding lights up the right button when the deck view is open.
 
 ---
 
