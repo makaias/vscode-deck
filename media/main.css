@@ -147,14 +147,23 @@ body {
 }
 
 .deck-empty {
-  padding: 16px;
+  padding: 16px 8px;
   color: var(--vscode-descriptionForeground);
   line-height: 1.5;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.deck-empty p {
+  margin: 0;
 }
 
 .deck-empty a {
   color: var(--vscode-textLink-foreground);
   cursor: pointer;
+  font-size: 12px;
 }
 
 .deck-placeholder {

@@ -61,6 +61,8 @@ export class DeckViewProvider implements vscode.WebviewViewProvider {
       vscode.commands.executeCommand('vscodeDeck.openFloating');
     } else if (msg.type === 'editConfig') {
       vscode.commands.executeCommand('vscodeDeck.editConfig');
+    } else if (msg.type === 'editButtons') {
+      vscode.commands.executeCommand('vscodeDeck.editButtons');
     }
   }
 }

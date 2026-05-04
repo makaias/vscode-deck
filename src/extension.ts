@@ -3,6 +3,7 @@ import { ConfigLoader } from './config';
 import { CommandRunner } from './runner';
 import { DeckViewProvider } from './viewProvider';
 import { DeckPanel } from './panel';
+import { DeckEditorPanel } from './editorPanel';
 
 export function activate(context: vscode.ExtensionContext) {
   const config = new ConfigLoader(context);
@@ -20,6 +21,9 @@ export function activate(context: vscode.ExtensionContext) {
       config.reload();
     }),
     vscode.commands.registerCommand('vscodeDeck.editConfig', () => config.openConfigFile()),
+    vscode.commands.registerCommand('vscodeDeck.editButtons', () => {
+      DeckEditorPanel.createOrShow(context, config);
+    }),
     vscode.commands.registerCommand('vscodeDeck.generateFromWorkspace', () =>
       config.generateFromWorkspace(),
     ),

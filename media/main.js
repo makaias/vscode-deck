@@ -58,14 +58,21 @@
   function renderEmpty() {
     const wrap = document.createElement('div');
     wrap.className = 'deck-empty';
-    const link = document.createElement('a');
-    link.textContent = 'Edit configuration';
-    link.onclick = (e) => {
+    const intro = document.createElement('p');
+    intro.textContent = 'No buttons configured.';
+    wrap.appendChild(intro);
+    const editBtn = document.createElement('button');
+    editBtn.className = 'open-floating';
+    editBtn.textContent = 'Open visual editor';
+    editBtn.onclick = () => vscode.postMessage({ type: 'editButtons' });
+    wrap.appendChild(editBtn);
+    const jsonLink = document.createElement('a');
+    jsonLink.textContent = 'or edit JSON directly';
+    jsonLink.onclick = (e) => {
       e.preventDefault();
       vscode.postMessage({ type: 'editConfig' });
     };
-    wrap.appendChild(document.createTextNode('No buttons configured. '));
-    wrap.appendChild(link);
+    wrap.appendChild(jsonLink);
     return wrap;
   }
 

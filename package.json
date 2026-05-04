@@ -42,6 +42,10 @@
         "title": "Deck: Edit Configuration"
       },
       {
+        "command": "vscodeDeck.editButtons",
+        "title": "Deck: Edit Buttons (Visual)"
+      },
+      {
         "command": "vscodeDeck.generateFromWorkspace",
         "title": "Deck: Generate Configuration from Workspace"
       }

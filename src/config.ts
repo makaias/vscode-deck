@@ -139,6 +139,15 @@ export class ConfigLoader implements vscode.Disposable {
     await vscode.window.showTextDocument(doc);
   }
 
+  async saveConfig(next: DeckConfig): Promise<void> {
+    const uri = this.getConfigFileUri();
+    if (!uri) {
+      throw new Error('Open a workspace folder to save Deck configuration.');
+    }
+    await fs.promises.mkdir(path.dirname(uri.fsPath), { recursive: true });
+    await fs.promises.writeFile(uri.fsPath, JSON.stringify(next, null, 2), 'utf8');
+  }
+
   reload() {
     const uri = this.getConfigFileUri();
     if (!uri) {
