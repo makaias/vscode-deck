@@ -14,6 +14,7 @@ export class DeckViewProvider implements vscode.WebviewViewProvider {
     context.subscriptions.push(
       config.onDidChange(() => this.push()),
       runner.onDidChangeRunning((keys) => this.pushRunState(keys)),
+      runner.onDidChangeStatus((statuses) => this.pushStatuses(statuses)),
     );
   }
 
@@ -25,6 +26,7 @@ export class DeckViewProvider implements vscode.WebviewViewProvider {
       this.context.extensionUri,
       this.renderedConfig(this.config.config),
       this.runner.runningKeys,
+      this.runner.statuses,
     );
     view.webview.onDidReceiveMessage((msg) => this.onMessage(msg));
   }
@@ -53,11 +55,19 @@ export class DeckViewProvider implements vscode.WebviewViewProvider {
       this.context.extensionUri,
       this.renderedConfig(this.config.config),
       this.runner.runningKeys,
+      this.runner.statuses,
     );
   }
 
   private pushRunState(keys: ReadonlySet<string>) {
     this.view?.webview.postMessage({ type: 'runState', running: Array.from(keys) });
+  }
+
+  private pushStatuses(statuses: ReadonlyMap<string, import('./runner').RunStatus>) {
+    this.view?.webview.postMessage({
+      type: 'statuses',
+      statuses: Array.from(statuses),
+    });
   }
 
   private async onMessage(msg: { type: string; index?: number; key?: string }) {

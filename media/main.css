@@ -257,3 +257,35 @@ body {
   .deck-spinner { animation: none; }
   .deck-running { animation: none; }
 }
+
+.deck-status-dot {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: transparent;
+  pointer-events: none;
+  z-index: 2;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.deck-status-dot.status-success {
+  background: var(--vscode-testing-iconPassed, var(--vscode-charts-green, #22c55e));
+  box-shadow: 0 0 0 1px var(--vscode-editor-background, transparent);
+}
+
+.deck-status-dot.status-failure {
+  background: var(--vscode-testing-iconFailed, var(--vscode-charts-red, #ef4444));
+  box-shadow: 0 0 0 1px var(--vscode-editor-background, transparent);
+}
+
+.deck-status-dot.status-cancelled {
+  background: var(--vscode-charts-yellow, var(--vscode-editorWarning-foreground, #f59e0b));
+  box-shadow: 0 0 0 1px var(--vscode-editor-background, transparent);
+}
+
+.deck-running .deck-status-dot {
+  display: none;
+}

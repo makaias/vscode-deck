@@ -2,6 +2,12 @@
   const vscode = acquireVsCodeApi();
   let config = window.__deckConfig || { columns: 4, buttons: [], mode: 'sidebar' };
   const running = new Set((window.__deckRunning || []).map(String));
+  const statuses = new Map();
+  for (const entry of window.__deckStatuses || []) {
+    if (Array.isArray(entry) && entry.length === 2) {
+      statuses.set(String(entry[0]), entry[1]);
+    }
+  }
   const root = document.getElementById('root');
   const savedState = (vscode.getState && vscode.getState()) || {};
   const collapsedCategories = new Set(savedState.collapsed || []);
@@ -128,6 +134,11 @@
     overlay.appendChild(stop);
     el.appendChild(overlay);
 
+    const statusDot = document.createElement('div');
+    statusDot.className = 'deck-status-dot';
+    statusDot.setAttribute('aria-hidden', 'true');
+    el.appendChild(statusDot);
+
     el.onclick = () => {
       const key = String(index);
       if (running.has(key)) {
@@ -152,11 +163,29 @@
       btn.removeAttribute('aria-busy');
       btn.removeAttribute('title');
     }
+    applyStatus(btn);
+  }
+
+  function applyStatus(btn) {
+    const key = btn.dataset.deckIndex;
+    const dot = btn.querySelector('.deck-status-dot');
+    if (!dot) return;
+    dot.classList.remove('status-success', 'status-failure', 'status-cancelled');
+    if (key === undefined) return;
+    const status = statuses.get(key);
+    if (status === 'success') dot.classList.add('status-success');
+    else if (status === 'failure') dot.classList.add('status-failure');
+    else if (status === 'cancelled') dot.classList.add('status-cancelled');
   }
 
   function syncRunningDom() {
     const buttons = root.querySelectorAll('.deck-button[data-deck-index]');
     buttons.forEach(applyRunningState);
+  }
+
+  function syncStatusDom() {
+    const buttons = root.querySelectorAll('.deck-button[data-deck-index]');
+    buttons.forEach(applyStatus);
   }
 
   function renderGrid(items) {
@@ -255,6 +284,15 @@
       const next = Array.isArray(msg.running) ? msg.running : [];
       for (const key of next) running.add(String(key));
       syncRunningDom();
+    } else if (msg.type === 'statuses') {
+      statuses.clear();
+      const list = Array.isArray(msg.statuses) ? msg.statuses : [];
+      for (const entry of list) {
+        if (Array.isArray(entry) && entry.length === 2) {
+          statuses.set(String(entry[0]), entry[1]);
+        }
+      }
+      syncStatusDom();
     }
   });
 

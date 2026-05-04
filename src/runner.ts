@@ -164,6 +164,8 @@ class DeckPty implements vscode.Pseudoterminal {
   }
 }
 
+export type RunStatus = 'success' | 'failure' | 'cancelled';
+
 interface ActiveRun {
   pty?: DeckPty;
   cancelled: boolean;
@@ -177,9 +179,12 @@ interface CachedTerminal {
 export class CommandRunner {
   private active = new Map<string, ActiveRun>();
   private terminals = new Map<string, CachedTerminal>();
-  private emitter = new vscode.EventEmitter<ReadonlySet<string>>();
+  private lastStatuses = new Map<string, RunStatus>();
+  private runningEmitter = new vscode.EventEmitter<ReadonlySet<string>>();
+  private statusEmitter = new vscode.EventEmitter<ReadonlyMap<string, RunStatus>>();
   private terminalCloseListener: vscode.Disposable;
-  readonly onDidChangeRunning = this.emitter.event;
+  readonly onDidChangeRunning = this.runningEmitter.event;
+  readonly onDidChangeStatus = this.statusEmitter.event;
 
   constructor() {
     // When a user manually closes a cached terminal (the X on the tab),
@@ -200,6 +205,10 @@ export class CommandRunner {
     return new Set(this.active.keys());
   }
 
+  get statuses(): ReadonlyMap<string, RunStatus> {
+    return new Map(this.lastStatuses);
+  }
+
   isRunning(runKey: string): boolean {
     return this.active.has(runKey);
   }
@@ -212,8 +221,12 @@ export class CommandRunner {
     return true;
   }
 
-  private fireChange() {
-    this.emitter.fire(this.runningKeys);
+  private fireRunning() {
+    this.runningEmitter.fire(this.runningKeys);
+  }
+
+  private fireStatus() {
+    this.statusEmitter.fire(this.statuses);
   }
 
   private acquirePty(runKey: string | undefined, label: string): DeckPty {
@@ -243,7 +256,7 @@ export class CommandRunner {
     const run: ActiveRun = { cancelled: false };
     if (runKey) {
       this.active.set(runKey, run);
-      this.fireChange();
+      this.fireRunning();
     }
 
     const ensurePty = (): DeckPty => {
@@ -255,11 +268,12 @@ export class CommandRunner {
       return run.pty;
     };
 
-    let aborted = false;
+    let outcome: RunStatus = 'success';
+    let lastExitCode = 0;
     try {
       for (let i = 0; i < steps.length; i++) {
         if (run.cancelled) {
-          aborted = true;
+          outcome = 'cancelled';
           break;
         }
         const step = steps[i];
@@ -272,7 +286,7 @@ export class CommandRunner {
           const code = await p.runCommand(step.command, effectiveCwd);
           if (run.cancelled) {
             p.writeLine('\x1b[31m! cancelled\x1b[0m');
-            aborted = true;
+            outcome = 'cancelled';
             break;
           }
           if (code !== 0 && !step.continueOnError) {
@@ -282,21 +296,34 @@ export class CommandRunner {
                 `\x1b[31m! exited with code ${code}; aborting chain\x1b[0m`,
               );
             }
-            aborted = true;
+            outcome = 'failure';
+            lastExitCode = code;
             break;
           }
         }
       }
-      if (!aborted) {
-        run.pty?.writeLine('\x1b[32m=== done ===\x1b[0m');
+      // Footer line — written only when a pty was actually created (i.e. at
+      // least one shell step ran). Pure vscode-command chains stay silent.
+      if (run.pty) {
+        if (outcome === 'success') {
+          run.pty.writeLine('\x1b[32m=== done ===\x1b[0m');
+        } else if (outcome === 'cancelled') {
+          run.pty.writeLine('\x1b[33m=== cancelled ===\x1b[0m');
+        } else {
+          run.pty.writeLine(`\x1b[31m=== failed (exit ${lastExitCode}) ===\x1b[0m`);
+        }
       }
     } catch (err) {
+      outcome = 'failure';
       run.pty?.writeLine(`\x1b[31m! error: ${(err as Error).message}\x1b[0m`);
+      run.pty?.writeLine('\x1b[31m=== failed ===\x1b[0m');
       vscode.window.showErrorMessage(`VSCode Deck: ${(err as Error).message}`);
     } finally {
       if (runKey) {
         this.active.delete(runKey);
-        this.fireChange();
+        this.lastStatuses.set(runKey, outcome);
+        this.fireRunning();
+        this.fireStatus();
       }
     }
   }
@@ -316,6 +343,7 @@ export class CommandRunner {
       entry.terminal.dispose();
     }
     this.terminalCloseListener.dispose();
-    this.emitter.dispose();
+    this.runningEmitter.dispose();
+    this.statusEmitter.dispose();
   }
 }

@@ -51,6 +51,7 @@ export class DeckPanel {
       context.extensionUri,
       config.config,
       runner.runningKeys,
+      runner.statuses,
     );
     this.disposables.push(
       this.panel.onDidDispose(() => this.dispose()),
@@ -62,12 +63,19 @@ export class DeckPanel {
           this.context.extensionUri,
           c,
           this.runner.runningKeys,
+          this.runner.statuses,
         );
       }),
       this.runner.onDidChangeRunning((keys) => {
         this.panel.webview.postMessage({
           type: 'runState',
           running: Array.from(keys),
+        });
+      }),
+      this.runner.onDidChangeStatus((statuses) => {
+        this.panel.webview.postMessage({
+          type: 'statuses',
+          statuses: Array.from(statuses),
         });
       }),
     );

@@ -1,6 +1,7 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { DeckConfig, DeckButton } from './config';
+import { RunStatus } from './runner';
 
 export interface RenderedConfig extends DeckConfig {
   _placeholder?: boolean;
@@ -71,6 +72,7 @@ export function getHtml(
   extensionUri: vscode.Uri,
   config: RenderedConfig,
   running: ReadonlySet<string> = new Set(),
+  statuses: ReadonlyMap<string, RunStatus> = new Map(),
 ): string {
   const nonce = getNonce();
   const scriptUri = webview.asWebviewUri(
@@ -107,6 +109,7 @@ export function getHtml(
 <script nonce="${nonce}">
 window.__deckConfig = ${JSON.stringify(rendered)};
 window.__deckRunning = ${JSON.stringify(Array.from(running))};
+window.__deckStatuses = ${JSON.stringify(Array.from(statuses))};
 </script>
 <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>
