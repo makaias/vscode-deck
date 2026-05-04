@@ -8,6 +8,20 @@
   let expandedUid = -1;
   let dragUid = -1;
   let nextUid = 1;
+  let searchQuery = '';
+
+  function isFiltering() {
+    return searchQuery.trim().length > 0;
+  }
+
+  function buttonMatchesSearch(btn, groupName) {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return true;
+    const title = (btn.title || '').toLowerCase();
+    const id = (btn.id || '').toLowerCase();
+    const cat = (groupName || '').toLowerCase();
+    return title.includes(q) || id.includes(q) || cat.includes(q);
+  }
 
   // Icon path resolution: backend rewrites local file paths into webview URIs.
   // We keep the raw string in state (so the user can edit it) but render
@@ -730,6 +744,25 @@
   }
 
   function renderGroup(group, gi) {
+    const filtering = isFiltering();
+    const q = searchQuery.trim().toLowerCase();
+    const groupNameMatches =
+      filtering && group.name && group.name.toLowerCase().includes(q);
+
+    const matchingButtons = group.buttons
+      .map((btn, bi) => ({ btn, bi }))
+      .filter(({ btn }) => {
+        if (!filtering) return true;
+        if (groupNameMatches) return true;
+        return buttonMatchesSearch(btn, group.name);
+      });
+
+    // While filtering, hide groups that have no matching buttons and whose
+    // name doesn't itself match the query.
+    if (filtering && matchingButtons.length === 0 && !groupNameMatches) {
+      return null;
+    }
+
     const section = el('div', 'group-section');
     const isUnc = group.name === '';
     if (isUnc) section.classList.add('group-uncategorized');
@@ -752,19 +785,27 @@
     }
 
     const tools = el('div', 'group-tools');
-    const count = el('span', 'group-count', String(group.buttons.length));
+    const count = el(
+      'span',
+      'group-count',
+      filtering && matchingButtons.length !== group.buttons.length
+        ? matchingButtons.length + '/' + group.buttons.length
+        : String(group.buttons.length),
+    );
     tools.appendChild(count);
     if (!isUnc) {
-      tools.appendChild(
+      const moveCat = el('div', 'group-move');
+      moveCat.appendChild(
         iconBtn('▲', 'Move category up', () => moveCategory(gi, -1), {
           disabled: gi <= 1,
         }),
       );
-      tools.appendChild(
+      moveCat.appendChild(
         iconBtn('▼', 'Move category down', () => moveCategory(gi, 1), {
           disabled: gi >= state.groups.length - 1,
         }),
       );
+      tools.appendChild(moveCat);
       tools.appendChild(
         iconBtn('×', 'Delete category', () => deleteCategory(gi), { danger: true }),
       );
@@ -779,10 +820,18 @@
     list.addEventListener('dragleave', (e) => onListDragLeave(e, list));
     list.addEventListener('drop', (e) => onListDrop(e, list, gi));
 
-    if (group.buttons.length === 0) {
-      list.appendChild(el('div', 'group-empty', 'Drop buttons here, or add a new one below.'));
+    if (matchingButtons.length === 0) {
+      list.appendChild(
+        el(
+          'div',
+          'group-empty',
+          filtering
+            ? 'No buttons in this category match.'
+            : 'Drop buttons here, or add a new one below.',
+        ),
+      );
     }
-    group.buttons.forEach((btn, bi) => {
+    matchingButtons.forEach(({ btn, bi }) => {
       list.appendChild(renderButtonRow(btn, gi, bi));
     });
     section.appendChild(list);
@@ -1122,15 +1171,83 @@
     return wrap;
   }
 
+  function renderSearchBar() {
+    const wrap = el('div', 'editor-search');
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'editor-search-input';
+    input.placeholder = 'Search buttons (title, id, category)…';
+    input.spellcheck = false;
+    input.value = searchQuery;
+    const clear = document.createElement('button');
+    clear.type = 'button';
+    clear.className = 'editor-search-clear';
+    clear.textContent = '×';
+    clear.title = 'Clear search';
+    function syncClear() {
+      clear.style.visibility = input.value ? 'visible' : 'hidden';
+    }
+    input.oninput = () => {
+      searchQuery = input.value;
+      render();
+    };
+    input.onkeydown = (e) => {
+      if (e.key === 'Escape' && input.value) {
+        e.preventDefault();
+        searchQuery = '';
+        render();
+      }
+    };
+    clear.onclick = () => {
+      searchQuery = '';
+      render();
+      const fresh = root.querySelector('.editor-search-input');
+      if (fresh) fresh.focus();
+    };
+    wrap.appendChild(input);
+    wrap.appendChild(clear);
+    syncClear();
+    return wrap;
+  }
+
   function render() {
+    // Capture search input focus and cursor so re-render-on-keystroke is
+    // seamless for the user typing in the search box.
+    const oldSearch = root.querySelector('.editor-search-input');
+    const wasFocused = oldSearch === document.activeElement;
+    const cursorStart = wasFocused ? oldSearch.selectionStart : null;
+    const cursorEnd = wasFocused ? oldSearch.selectionEnd : null;
+
     root.innerHTML = '';
     root.appendChild(renderHeader());
     root.appendChild(renderSettings());
+    root.appendChild(renderSearchBar());
+
+    const filtering = isFiltering();
+    root.classList.toggle('editor-search-active', filtering);
 
     const area = el('div', 'btn-list');
     area.appendChild(renderListTop());
-    state.groups.forEach((g, gi) => area.appendChild(renderGroup(g, gi)));
+    let renderedAny = false;
+    state.groups.forEach((g, gi) => {
+      const groupEl = renderGroup(g, gi);
+      if (groupEl) {
+        area.appendChild(groupEl);
+        renderedAny = true;
+      }
+    });
+    if (filtering && !renderedAny) {
+      area.appendChild(el('div', 'empty-hint', 'No buttons match your search.'));
+    }
     root.appendChild(area);
+
+    if (wasFocused) {
+      const fresh = root.querySelector('.editor-search-input');
+      if (fresh) {
+        fresh.focus();
+        fresh.setSelectionRange(cursorStart, cursorEnd);
+      }
+    }
   }
 
   // === incoming messages ===

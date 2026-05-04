@@ -7,6 +7,74 @@ body {
   margin: 0;
 }
 
+.deck-search {
+  position: relative;
+  margin-bottom: 8px;
+}
+
+.deck-search-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 4px 22px 4px 8px;
+  border: 1px solid var(--vscode-input-border, transparent);
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border-radius: 2px;
+  font-family: inherit;
+  font-size: 12px;
+  outline: none;
+}
+
+.deck-search-input:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
+.deck-search-input::placeholder {
+  color: var(--vscode-input-placeholderForeground, var(--vscode-descriptionForeground));
+}
+
+.deck-search-clear {
+  position: absolute;
+  right: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--vscode-input-foreground);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 2px;
+  opacity: 0.7;
+}
+
+.deck-search-clear:hover {
+  background: var(--vscode-toolbar-hoverBackground, var(--vscode-list-hoverBackground));
+  opacity: 1;
+}
+
+.deck-no-results {
+  padding: 16px 8px;
+  text-align: center;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+  font-style: italic;
+}
+
+.deck-filtered-out,
+.deck-section-hidden {
+  display: none !important;
+}
+
+/* While searching, treat collapsed categories as expanded so matches inside
+   them remain visible. */
+.deck-search-active .deck-collapsed .deck-grid {
+  display: grid !important;
+}
+
 .deck-grid {
   display: grid;
   gap: 8px;

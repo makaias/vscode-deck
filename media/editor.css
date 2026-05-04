@@ -286,6 +286,11 @@ body {
   gap: 4px;
 }
 
+.group-move {
+  display: flex;
+  gap: 2px;
+}
+
 .group-count {
   font-size: 11px;
   color: var(--vscode-descriptionForeground);
@@ -568,6 +573,64 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+/* === search === */
+.editor-search {
+  position: relative;
+}
+
+.editor-search-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 5px 26px 5px 8px;
+  border: 1px solid var(--vscode-input-border, transparent);
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border-radius: 2px;
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+}
+
+.editor-search-input:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
+.editor-search-input::placeholder {
+  color: var(--vscode-input-placeholderForeground, var(--vscode-descriptionForeground));
+}
+
+.editor-search-clear {
+  position: absolute;
+  right: 3px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--vscode-input-foreground);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 2px;
+  opacity: 0.7;
+}
+
+.editor-search-clear:hover {
+  background: var(--vscode-toolbar-hoverBackground, var(--vscode-list-hoverBackground));
+  opacity: 1;
+}
+
+/* While a filter is active, reordering controls would produce confusing
+   results (visible drops would shift hidden buttons). Hide them; users
+   clear the search to reorder. */
+.editor-search-active .btn-drag-handle,
+.editor-search-active .btn-move,
+.editor-search-active .group-move {
+  display: none;
 }
 
 /* === keybinding section === */

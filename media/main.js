@@ -11,10 +11,14 @@
   const root = document.getElementById('root');
   const savedState = (vscode.getState && vscode.getState()) || {};
   const collapsedCategories = new Set(savedState.collapsed || []);
+  let searchQuery = typeof savedState.search === 'string' ? savedState.search : '';
 
   function saveState() {
     if (vscode.setState) {
-      vscode.setState({ collapsed: Array.from(collapsedCategories) });
+      vscode.setState({
+        collapsed: Array.from(collapsedCategories),
+        search: searchQuery,
+      });
     }
   }
 
@@ -248,7 +252,9 @@
       }
     });
     if (uncategorized.length) {
-      frag.appendChild(renderGrid(uncategorized));
+      const topGrid = renderGrid(uncategorized);
+      topGrid.classList.add('deck-grid-top');
+      frag.appendChild(topGrid);
     }
     for (const cat of order) {
       frag.appendChild(renderCategorySection(cat, byCategory.get(cat)));
@@ -261,6 +267,103 @@
     return frag;
   }
 
+  function renderSearchBar() {
+    const wrap = document.createElement('div');
+    wrap.className = 'deck-search';
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'deck-search-input';
+    input.placeholder = 'Search…';
+    input.spellcheck = false;
+    input.value = searchQuery;
+    const clear = document.createElement('button');
+    clear.type = 'button';
+    clear.className = 'deck-search-clear';
+    clear.textContent = '×';
+    clear.title = 'Clear search';
+    function syncClearVisibility() {
+      clear.style.visibility = input.value ? 'visible' : 'hidden';
+    }
+    input.oninput = () => {
+      searchQuery = input.value;
+      saveState();
+      applyFilter();
+      syncClearVisibility();
+    };
+    input.onkeydown = (e) => {
+      if (e.key === 'Escape' && input.value) {
+        e.preventDefault();
+        input.value = '';
+        searchQuery = '';
+        saveState();
+        applyFilter();
+        syncClearVisibility();
+      }
+    };
+    clear.onclick = () => {
+      input.value = '';
+      searchQuery = '';
+      saveState();
+      applyFilter();
+      syncClearVisibility();
+      input.focus();
+    };
+    wrap.appendChild(input);
+    wrap.appendChild(clear);
+    syncClearVisibility();
+    return wrap;
+  }
+
+  function applyFilter() {
+    const q = searchQuery.trim().toLowerCase();
+    const buttons = config.buttons || [];
+    let anyVisible = false;
+    const buttonEls = root.querySelectorAll('.deck-button[data-deck-index]');
+    buttonEls.forEach((btn) => {
+      const idx = parseInt(btn.dataset.deckIndex, 10);
+      const button = buttons[idx];
+      if (!button) return;
+      let match = true;
+      if (q) {
+        const title = (button.title || '').toLowerCase();
+        const category = (button.category || '').toLowerCase();
+        match = title.includes(q) || category.includes(q);
+      }
+      btn.classList.toggle('deck-filtered-out', !match);
+      if (match) anyVisible = true;
+    });
+    // Sections (categorized): hide if no visible buttons
+    root.querySelectorAll('.deck-section').forEach((section) => {
+      const visible = section.querySelector(
+        '.deck-button:not(.deck-filtered-out)',
+      );
+      section.classList.toggle('deck-section-hidden', !visible);
+    });
+    // Top-level uncategorized grid
+    const topGrid = root.querySelector('.deck-grid-top');
+    if (topGrid) {
+      const visible = topGrid.querySelector(
+        '.deck-button:not(.deck-filtered-out)',
+      );
+      topGrid.classList.toggle('deck-section-hidden', !visible);
+    }
+    // While search is active, force-expand collapsed categories so matches
+    // inside them aren't trapped.
+    root.classList.toggle('deck-search-active', !!q);
+    // Empty-results message
+    let msg = root.querySelector('.deck-no-results');
+    if (q && !anyVisible) {
+      if (!msg) {
+        msg = document.createElement('div');
+        msg.className = 'deck-no-results';
+        msg.textContent = 'No buttons match your search.';
+        root.appendChild(msg);
+      }
+    } else if (msg) {
+      msg.remove();
+    }
+  }
+
   function render() {
     root.innerHTML = '';
     if (config._placeholder) {
@@ -271,7 +374,9 @@
       root.appendChild(renderEmpty());
       return;
     }
+    root.appendChild(renderSearchBar());
     root.appendChild(renderAll());
+    applyFilter();
   }
 
   window.addEventListener('message', (e) => {
