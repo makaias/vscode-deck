@@ -46,6 +46,12 @@
           "minLength": 1,
           "description": "Label shown under the button icon."
         },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Optional stable identifier for this button. Use it as the `args` of the `vscodeDeck.runButton` keybinding command — surviving title and category renames. Example keybinding:\n\n`{ \"key\": \"ctrl+alt+b\", \"command\": \"vscodeDeck.runButton\", \"args\": \"build\" }`",
+          "examples": ["build", "deploy", "test-watch"]
+        },
         "icon": {
           "type": "string",
           "description": "Icon for the button. Accepts any of:\n\n- An emoji or short text — e.g. `\"▶️\"`, `\"🚀\"`\n- An HTTP(S) URL pointing to an image\n- A workspace-relative file path — e.g. `\"media/run.svg\"`\n- An inline SVG string — use `currentColor` for theme-aware tinting",

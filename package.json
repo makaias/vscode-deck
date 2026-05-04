@@ -30,6 +30,10 @@
     },
     "commands": [
       {
+        "command": "vscodeDeck.show",
+        "title": "Deck: Show in Sidebar"
+      },
+      {
         "command": "vscodeDeck.openFloating",
         "title": "Deck: Open in Floating Window"
       },
@@ -48,6 +52,10 @@
       {
         "command": "vscodeDeck.generateFromWorkspace",
         "title": "Deck: Generate Configuration from Workspace"
+      },
+      {
+        "command": "vscodeDeck.runButton",
+        "title": "Deck: Run Button (by id or title)"
       }
     ],
     "configuration": {

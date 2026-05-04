@@ -9,6 +9,7 @@ export type CommandStep =
 
 export interface DeckButton {
   title: string;
+  id?: string;
   icon?: string;
   color?: string;
   category?: string;

@@ -569,3 +569,45 @@ body {
   flex-direction: column;
   gap: 8px;
 }
+
+/* === keybinding section === */
+.keybind-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--vscode-input-border, transparent);
+  border-radius: 3px;
+  background: var(--vscode-textBlockQuote-background, var(--vscode-editorWidget-background, transparent));
+}
+
+.keybind-help {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  line-height: 1.4;
+}
+
+.keybind-snippet {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.keybind-snippet-pre {
+  margin: 0;
+  padding: 6px 8px;
+  background: var(--vscode-textCodeBlock-background, var(--vscode-input-background));
+  border: 1px solid var(--vscode-input-border, transparent);
+  border-radius: 3px;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: var(--vscode-foreground);
+  overflow-x: auto;
+}
+
+.keybind-actions {
+  display: flex;
+  gap: 6px;
+}

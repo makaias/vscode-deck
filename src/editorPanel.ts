@@ -5,6 +5,8 @@ import { getEditorHtml } from './editorWebview';
 interface IncomingMessage {
   type: string;
   config?: DeckConfig;
+  text?: string;
+  toast?: string;
 }
 
 export class DeckEditorPanel {
@@ -72,6 +74,13 @@ export class DeckEditorPanel {
       // generateFromWorkspace writes the file; pull the fresh config in
       this.config.reload();
       this.pushConfig();
+    } else if (msg.type === 'copyToClipboard' && typeof msg.text === 'string') {
+      await vscode.env.clipboard.writeText(msg.text);
+      vscode.window.showInformationMessage(
+        msg.toast || 'VSCode Deck: copied to clipboard.',
+      );
+    } else if (msg.type === 'openKeybindings') {
+      vscode.commands.executeCommand('workbench.action.openGlobalKeybindings');
     }
   }
 

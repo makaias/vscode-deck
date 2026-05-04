@@ -793,6 +793,7 @@
         const card = root.querySelector('.btn-card[data-uid="' + btn.__uid + '"]');
         const nameSpan = card && card.querySelector('.btn-name');
         if (nameSpan) nameSpan.textContent = v || '(untitled)';
+        refreshSnippetFor(btn);
         markDirty();
       }),
     );
@@ -837,6 +838,8 @@
         (v) => moveButtonToGroup(gi, bi, parseInt(v, 10)),
       ),
     );
+
+    form.appendChild(renderKeybindingSection(btn, gi, bi));
 
     // Commands
     const cmdsHeader = el('div', 'cmds-header');
@@ -934,6 +937,75 @@
     }
     card.appendChild(body);
     return card;
+  }
+
+  function buttonKeybindingSnippet(btn) {
+    const arg = btn && btn.id && btn.id.trim() ? btn.id.trim() : (btn && btn.title) || '';
+    return (
+      '{ "key": "ctrl+alt+", "command": "vscodeDeck.runButton", "args": ' +
+      JSON.stringify(arg) +
+      ' }'
+    );
+  }
+
+  function refreshSnippetFor(btn) {
+    if (!btn) return;
+    const code = root.querySelector(
+      '.btn-card[data-uid="' + btn.__uid + '"] .keybind-snippet code',
+    );
+    if (code) code.textContent = buttonKeybindingSnippet(btn);
+  }
+
+  function renderKeybindingSection(btn, gi, bi) {
+    const wrap = el('div', 'keybind-section');
+    wrap.appendChild(el('div', 'section-label', 'Keyboard shortcut'));
+
+    const help = el('div', 'keybind-help');
+    help.textContent =
+      'Bind any key to this button via VSCode keybindings. Set an ID to make the binding survive title renames; otherwise it matches by title.';
+    wrap.appendChild(help);
+
+    wrap.appendChild(
+      field(
+        'ID (optional, stable)',
+        btn.id || '',
+        (v) => {
+          const trimmed = (v || '').trim();
+          updateButton(gi, bi, 'id', trimmed || undefined);
+          refreshSnippetFor(btn);
+        },
+        { placeholder: 'e.g. build, deploy, test-watch' },
+      ),
+    );
+
+    const snippetBox = el('div', 'keybind-snippet');
+    const snippetPre = document.createElement('pre');
+    snippetPre.className = 'keybind-snippet-pre';
+    const snippetText = document.createElement('code');
+    snippetText.textContent = buttonKeybindingSnippet(btn);
+    snippetPre.appendChild(snippetText);
+    snippetBox.appendChild(snippetPre);
+
+    const snippetActions = el('div', 'keybind-actions');
+    snippetActions.appendChild(
+      iconBtn('Copy keybinding', 'Copy snippet to clipboard', () => {
+        vscode.postMessage({
+          type: 'copyToClipboard',
+          text: snippetText.textContent,
+          toast:
+            'Deck: keybinding copied. Paste it into Keyboard Shortcuts (JSON) and set "key".',
+        });
+      }),
+    );
+    snippetActions.appendChild(
+      iconBtn('Open Keyboard Shortcuts', 'Open the VSCode keybindings UI', () => {
+        vscode.postMessage({ type: 'openKeybindings' });
+      }),
+    );
+    snippetBox.appendChild(snippetActions);
+    wrap.appendChild(snippetBox);
+
+    return wrap;
   }
 
   function renderArgsField(gi, bi, sIdx, args) {
