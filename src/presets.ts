@@ -126,22 +126,22 @@ export const PRESETS: Preset[] = [
     build: () => [
       {
         title: "Pull",
-        icon: "⬇️",
+        icon: ICONS.arrowDownToLine,
         commands: [{ type: "vscode", command: "git.pull" }],
       },
       {
         title: "Push",
-        icon: "⬆️",
+        icon: ICONS.arrowUpFromLine,
         commands: [{ type: "vscode", command: "git.push" }],
       },
       {
         title: "Sync",
-        icon: "🔄",
+        icon: ICONS.refreshCcv,
         commands: [{ type: "vscode", command: "git.sync" }],
       },
       {
         title: "Source Control",
-        icon: "🌿",
+        icon: ICONS.gitBranch,
         commands: [{ type: "vscode", command: "workbench.view.scm" }],
       },
     ],
