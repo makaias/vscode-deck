@@ -169,8 +169,15 @@
     vscode.postMessage({ type: 'save', config: flattenToConfig() });
   }
 
-  function reload() {
-    if (dirty && !confirm('Discard unsaved changes and reload from file?')) return;
+  async function reload() {
+    if (
+      dirty &&
+      !(await confirmDialog('Discard unsaved changes and reload from file?', {
+        confirmLabel: 'Discard',
+      }))
+    ) {
+      return;
+    }
     vscode.postMessage({ type: 'reload' });
   }
 
@@ -181,6 +188,54 @@
     if (cls) e.className = cls;
     if (text !== undefined) e.textContent = text;
     return e;
+  }
+
+  // VSCode webviews don't implement window.confirm() (it silently returns
+  // undefined), so we use a small custom modal that resolves a Promise.
+  function confirmDialog(message, opts) {
+    return new Promise((resolve) => {
+      const overlay = el('div', 'modal-overlay');
+      const box = el('div', 'modal-box');
+      box.appendChild(el('div', 'modal-message', message));
+      const actions = el('div', 'modal-actions');
+
+      let settled = false;
+      const close = (result) => {
+        if (settled) return;
+        settled = true;
+        document.removeEventListener('keydown', onKey);
+        overlay.remove();
+        resolve(result);
+      };
+
+      const cancelBtn = el('button', 'icon-btn');
+      cancelBtn.type = 'button';
+      cancelBtn.textContent = (opts && opts.cancelLabel) || 'Cancel';
+      cancelBtn.onclick = () => close(false);
+
+      const okBtn = el('button', 'icon-btn');
+      okBtn.type = 'button';
+      okBtn.textContent = (opts && opts.confirmLabel) || 'Delete';
+      okBtn.classList.add(opts && opts.primary ? 'primary' : 'danger');
+      okBtn.onclick = () => close(true);
+
+      actions.appendChild(cancelBtn);
+      actions.appendChild(okBtn);
+      box.appendChild(actions);
+      overlay.appendChild(box);
+
+      overlay.onclick = (e) => {
+        if (e.target === overlay) close(false);
+      };
+      const onKey = (e) => {
+        if (e.key === 'Escape') close(false);
+        else if (e.key === 'Enter') close(true);
+      };
+      document.addEventListener('keydown', onKey);
+
+      document.body.appendChild(overlay);
+      okBtn.focus();
+    });
   }
 
   function iconBtn(label, title, onClick, opts) {
@@ -395,10 +450,10 @@
     render();
   }
 
-  function deleteButton(gi, bi) {
+  async function deleteButton(gi, bi) {
     const btn = state.groups[gi].buttons[bi];
     const label = btn && btn.title ? `"${btn.title}"` : 'this button';
-    if (!confirm(`Delete ${label}?`)) return;
+    if (!(await confirmDialog(`Delete ${label}?`))) return;
     state.groups[gi].buttons.splice(bi, 1);
     markDirty();
     render();
@@ -439,10 +494,10 @@
     render();
   }
 
-  function deleteCategory(gi) {
+  async function deleteCategory(gi) {
     const g = state.groups[gi];
     if (g.buttons.length > 0) {
-      const ok = confirm(
+      const ok = await confirmDialog(
         `Delete category "${g.name}"? Its ${g.buttons.length} button(s) will move to Uncategorized.`,
       );
       if (!ok) return;
